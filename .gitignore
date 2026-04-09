@@ -1,0 +1,46 @@
+# OS and editor files
+.DS_Store
+Thumbs.db
+.fleet/
+.idea/
+.nova/
+.phpunit.cache/
+.vscode/
+.zed/
+
+# Logs
+*.log
+
+# Root env files
+.env
+.env.*
+!.env.example
+
+# Laravel API
+apps/api/.env
+apps/api/.env.backup
+apps/api/.env.production
+apps/api/.phpactor.json
+apps/api/.phpunit.result.cache
+apps/api/auth.json
+apps/api/node_modules/
+apps/api/public/build/
+apps/api/public/hot
+apps/api/public/storage
+apps/api/storage/*.key
+apps/api/storage/pail
+apps/api/vendor/
+apps/api/_ide_helper.php
+
+# Nuxt web
+apps/web/.output/
+apps/web/.data/
+apps/web/.nuxt/
+apps/web/.nitro/
+apps/web/.cache/
+apps/web/dist/
+apps/web/node_modules/
+apps/web/logs/
+apps/web/.env
+apps/web/.env.*
+!apps/web/.env.example
