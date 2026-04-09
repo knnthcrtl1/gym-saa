@@ -14,16 +14,15 @@ return new class extends Migration
             $table->foreignId('branch_id')->nullable()->constrained()->nullOnDelete();
             $table->string('name');
             $table->text('description')->nullable();
-            $table->string('duration_type', 30);
-            $table->unsignedInteger('duration_value');
+            $table->enum('duration_type', ['day', 'week', 'month', 'year', 'session']);
+            $table->unsignedInteger('duration_value')->default(1);
             $table->decimal('price', 10, 2);
             $table->unsignedInteger('session_limit')->nullable();
             $table->unsignedInteger('freeze_limit_days')->nullable();
-            $table->string('status', 30)->default('active');
+            $table->enum('status', ['active', 'inactive'])->default('active');
             $table->timestamps();
 
-            $table->index(['tenant_id', 'status']);
-            $table->index(['branch_id', 'status']);
+            $table->index(['tenant_id', 'branch_id', 'status']);
         });
     }
 

@@ -21,6 +21,7 @@ class Branch extends Model
         'status',
     ];
 
+    
     public function tenant(): BelongsTo
     {
         return $this->belongsTo(Tenant::class);

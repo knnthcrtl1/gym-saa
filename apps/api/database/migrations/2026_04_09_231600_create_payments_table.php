@@ -16,16 +16,16 @@ return new class extends Migration
             $table->foreignId('subscription_id')->nullable()->constrained()->nullOnDelete();
             $table->dateTime('payment_date');
             $table->decimal('amount', 10, 2);
-            $table->string('payment_method', 30);
+            $table->enum('payment_method', ['cash', 'gcash', 'bank_transfer', 'card', 'online']);
             $table->string('reference_no')->nullable();
             $table->text('notes')->nullable();
-            $table->string('status', 30)->default('completed');
+            $table->enum('status', ['pending', 'paid', 'failed', 'refunded'])->default('paid');
             $table->foreignId('recorded_by')->nullable()->constrained('users')->nullOnDelete();
             $table->timestamps();
 
-            $table->index(['tenant_id', 'status']);
-            $table->index(['member_id', 'payment_date']);
-            $table->index('reference_no');
+            $table->index(['tenant_id', 'branch_id', 'status']);
+            $table->index(['member_id']);
+            $table->index(['payment_date']);
         });
     }
 

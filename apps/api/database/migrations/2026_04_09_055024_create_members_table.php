@@ -10,17 +10,25 @@ return new class extends Migration
     {
         Schema::create('members', function (Blueprint $table) {
             $table->id();
-            $table->unsignedBigInteger('tenant_id')->nullable();
-            $table->unsignedBigInteger('branch_id')->nullable();
-            $table->string('member_code')->nullable()->unique();
+            $table->foreignId('tenant_id')->constrained()->cascadeOnDelete();
+            $table->foreignId('branch_id')->constrained()->cascadeOnDelete();
+            $table->string('member_code')->unique();
             $table->string('first_name');
             $table->string('last_name');
             $table->string('email')->nullable();
-            $table->string('phone')->nullable();
-            $table->enum('status', ['active', 'inactive', 'pending'])->default('pending');
+            $table->string('phone', 30)->nullable();
+            $table->date('birthdate')->nullable();
+            $table->string('sex', 20)->nullable();
+            $table->text('address')->nullable();
+            $table->string('emergency_contact_name')->nullable();
+            $table->string('emergency_contact_phone', 30)->nullable();
+            $table->string('qr_code_value')->nullable()->unique();
+            $table->enum('status', ['active', 'inactive', 'blocked'])->default('active');
+            $table->date('joined_at')->nullable();
             $table->timestamps();
 
-            $table->index(['tenant_id', 'branch_id']);
+            $table->index(['tenant_id', 'branch_id', 'status']);
+            $table->index(['last_name', 'first_name']);
         });
     }
 

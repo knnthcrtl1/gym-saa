@@ -16,14 +16,13 @@ return new class extends Migration
             $table->foreignId('subscription_id')->nullable()->constrained()->nullOnDelete();
             $table->dateTime('checkin_time');
             $table->dateTime('checkout_time')->nullable();
-            $table->string('source', 30)->default('qr');
-            $table->string('status', 30)->default('checked_in');
+            $table->enum('source', ['qr', 'manual', 'kiosk'])->default('qr');
+            $table->enum('status', ['checked_in', 'checked_out'])->default('checked_in');
             $table->foreignId('verified_by')->nullable()->constrained('users')->nullOnDelete();
             $table->timestamps();
 
-            $table->index(['tenant_id', 'checkin_time']);
+            $table->index(['tenant_id', 'branch_id']);
             $table->index(['member_id', 'checkin_time']);
-            $table->index(['branch_id', 'status']);
         });
     }
 

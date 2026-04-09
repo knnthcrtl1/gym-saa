@@ -15,10 +15,8 @@ return new class extends Migration
             $table->string('email')->nullable();
             $table->string('phone', 30)->nullable();
             $table->text('address')->nullable();
-            $table->string('status', 30)->default('active');
+            $table->enum('status', ['active', 'inactive'])->default('active');
             $table->timestamps();
-
-            $table->index('status');
         });
     }
 

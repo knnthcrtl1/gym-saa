@@ -12,14 +12,13 @@ return new class extends Migration
             $table->id();
             $table->foreignId('tenant_id')->constrained()->cascadeOnDelete();
             $table->string('name');
-            $table->string('code', 50);
+            $table->string('code')->nullable();
             $table->string('email')->nullable();
             $table->string('phone', 30)->nullable();
             $table->text('address')->nullable();
-            $table->string('status', 30)->default('active');
+            $table->enum('status', ['active', 'inactive'])->default('active');
             $table->timestamps();
 
-            $table->unique(['tenant_id', 'code']);
             $table->index(['tenant_id', 'status']);
         });
     }

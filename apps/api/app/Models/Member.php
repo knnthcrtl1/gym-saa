@@ -2,15 +2,12 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Member extends Model
 {
-    use HasFactory;
-
     protected $fillable = [
         'tenant_id',
         'branch_id',
@@ -29,13 +26,10 @@ class Member extends Model
         'joined_at',
     ];
 
-    protected function casts(): array
-    {
-        return [
-            'birthdate' => 'date',
-            'joined_at' => 'datetime',
-        ];
-    }
+    protected $casts = [
+        'birthdate' => 'date',
+        'joined_at' => 'date',
+    ];
 
     public function tenant(): BelongsTo
     {

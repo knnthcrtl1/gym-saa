@@ -18,13 +18,13 @@ return new class extends Migration
             $table->date('end_date');
             $table->decimal('amount', 10, 2);
             $table->unsignedInteger('sessions_remaining')->nullable();
-            $table->string('payment_status', 30)->default('unpaid');
-            $table->string('status', 30)->default('active');
+            $table->enum('payment_status', ['unpaid', 'partial', 'paid'])->default('unpaid');
+            $table->enum('status', ['pending', 'active', 'expired', 'frozen', 'cancelled'])->default('pending');
             $table->timestamps();
 
-            $table->index(['tenant_id', 'status']);
+            $table->index(['tenant_id', 'branch_id', 'status']);
             $table->index(['member_id', 'status']);
-            $table->index(['branch_id', 'start_date']);
+            $table->index(['end_date']);
         });
     }
 
