@@ -7,33 +7,27 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
-class Member extends Model
+class MembershipPlan extends Model
 {
     use HasFactory;
 
     protected $fillable = [
         'tenant_id',
         'branch_id',
-        'member_code',
-        'first_name',
-        'last_name',
-        'email',
-        'phone',
-        'birthdate',
-        'sex',
-        'address',
-        'emergency_contact_name',
-        'emergency_contact_phone',
-        'qr_code_value',
+        'name',
+        'description',
+        'duration_type',
+        'duration_value',
+        'price',
+        'session_limit',
+        'freeze_limit_days',
         'status',
-        'joined_at',
     ];
 
     protected function casts(): array
     {
         return [
-            'birthdate' => 'date',
-            'joined_at' => 'datetime',
+            'price' => 'decimal:2',
         ];
     }
 
@@ -50,15 +44,5 @@ class Member extends Model
     public function subscriptions(): HasMany
     {
         return $this->hasMany(Subscription::class);
-    }
-
-    public function payments(): HasMany
-    {
-        return $this->hasMany(Payment::class);
-    }
-
-    public function checkins(): HasMany
-    {
-        return $this->hasMany(Checkin::class);
     }
 }
