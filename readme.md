@@ -30,3 +30,7 @@ Multi-tenant gym management SaaS built with Nuxt + Laravel.
 
 - `apps/api` uses SQLite by default for local development.
 - The database file is `apps/api/database/database.sqlite`.
+
+## Development Standards
+
+- See `docs/engineering-standards.md` for backend and frontend implementation rules.
