@@ -1,6 +1,6 @@
 <template>
   <div>
-    <div class="d-flex align-center justify-space-between mb-4">
+    <div class="d-flex justify-space-between align-center mb-4">
       <h1 class="text-h5 font-weight-bold">Members</h1>
       <v-btn color="primary">Add Member</v-btn>
     </div>
@@ -9,6 +9,7 @@
       <v-table>
         <thead>
           <tr>
+            <th>Member Code</th>
             <th>Name</th>
             <th>Email</th>
             <th>Phone</th>
@@ -17,6 +18,7 @@
         </thead>
         <tbody>
           <tr v-for="member in members" :key="member.id">
+            <td>{{ member.member_code }}</td>
             <td>{{ member.first_name }} {{ member.last_name }}</td>
             <td>{{ member.email || "-" }}</td>
             <td>{{ member.phone || "-" }}</td>
@@ -29,23 +31,7 @@
 </template>
 
 <script setup lang="ts">
-type Member = {
-  id: number;
-  first_name: string;
-  last_name: string;
-  email?: string | null;
-  phone?: string | null;
-  status: string;
-};
-
-const config = useRuntimeConfig();
-
-const { data } = await useFetch<{ data: Member[] }>(
-  `${config.public.apiBase}/members`,
-  {
-    credentials: "include",
-  },
-);
+const { data } = await useMembers();
 
 const members = computed(() => data.value?.data ?? []);
 </script>
