@@ -1,3 +1,5 @@
+import vuetify from "vite-plugin-vuetify";
+
 export default defineNuxtConfig({
   compatibilityDate: "2025-01-01",
   devtools: { enabled: true },
@@ -9,6 +11,7 @@ export default defineNuxtConfig({
   },
 
   vite: {
+    plugins: [vuetify({ autoImport: true })],
     ssr: {
       noExternal: ["vuetify"],
     },
