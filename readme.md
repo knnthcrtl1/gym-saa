@@ -23,5 +23,10 @@ Multi-tenant gym management SaaS built with Nuxt + Laravel.
 - Nuxt 4
 - Laravel 13
 - Sanctum
-- MySQL
+- SQLite
 - Vuetify
+
+## Local Development
+
+- `apps/api` uses SQLite by default for local development.
+- The database file is `apps/api/database/database.sqlite`.
