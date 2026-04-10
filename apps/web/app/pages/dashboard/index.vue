@@ -12,6 +12,9 @@
       </div>
 
       <div class="toolbar-actions">
+        <v-chip v-if="preview.isPreview" color="accent" variant="tonal">
+          Preview mode
+        </v-chip>
         <v-btn color="accent" variant="outlined" to="/attendance"
           >Attendance flow</v-btn
         >
@@ -77,7 +80,7 @@
 </template>
 
 <script setup lang="ts">
-const { data } = await useDashboard();
+const { data, preview } = await useDashboard();
 
 const stats = computed(
   () =>
@@ -115,7 +118,9 @@ const cards = computed(() => [
   {
     label: "Monthly revenue",
     value: formatCurrency(stats.value.monthly_revenue),
-    caption: "Paid transactions recorded this month",
+    caption: preview.value.isPreview
+      ? "Preview dataset while API auth is offline"
+      : "Paid transactions recorded this month",
   },
 ]);
 </script>

@@ -80,6 +80,12 @@
 </template>
 
 <script setup lang="ts">
-const primaryRoute = "/login";
-const primaryAction = "Sign in to admin";
+const config = useRuntimeConfig();
+
+const primaryRoute = config.public.dashboardPreviewMode
+  ? "/dashboard"
+  : "/login";
+const primaryAction = config.public.dashboardPreviewMode
+  ? "Open dashboard preview"
+  : "Sign in to admin";
 </script>

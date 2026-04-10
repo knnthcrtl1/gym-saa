@@ -102,3 +102,7 @@ export type DashboardStats = {
 export type DashboardResponse = {
   stats: DashboardStats;
 };
+
+export type DashboardPreviewState = {
+  isPreview: boolean;
+};

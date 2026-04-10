@@ -1,7 +1,12 @@
 const publicRoutes = new Set(["/", "/login"]);
 
 export default defineNuxtRouteMiddleware(async (to) => {
-  if (publicRoutes.has(to.path)) {
+  const config = useRuntimeConfig();
+  const previewRoutes = config.public.dashboardPreviewMode
+    ? new Set(["/dashboard"])
+    : new Set<string>();
+
+  if (publicRoutes.has(to.path) || previewRoutes.has(to.path)) {
     return;
   }
 
