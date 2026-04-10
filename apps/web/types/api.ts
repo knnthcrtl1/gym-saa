@@ -51,7 +51,14 @@ export type Member = {
   last_name: string;
   email?: string | null;
   phone?: string | null;
+  birthdate?: string | null;
+  sex?: string | null;
+  address?: string | null;
+  emergency_contact_name?: string | null;
+  emergency_contact_phone?: string | null;
+  qr_code_value?: string | null;
   status: "active" | "inactive" | "blocked";
+  joined_at?: string | null;
 };
 
 export type MembershipPlan = {

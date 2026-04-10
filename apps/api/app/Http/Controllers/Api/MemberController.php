@@ -52,7 +52,10 @@ class MemberController extends Controller
 
         $member = Member::create($data);
 
-        return response()->json($member, 201);
+        return response()->json([
+            'message' => 'Member created successfully',
+            'data' => $member,
+        ], 201);
     }
 
     public function show(Request $request, Member $member)
@@ -62,7 +65,9 @@ class MemberController extends Controller
             $request,
         );
 
-        return response()->json($query->firstOrFail());
+        return response()->json([
+            'data' => $query->firstOrFail(),
+        ]);
     }
 
     public function update(UpdateMemberRequest $request, Member $member)
@@ -83,7 +88,10 @@ class MemberController extends Controller
 
         $scopedMember->update($data);
 
-        return response()->json($scopedMember);
+        return response()->json([
+            'message' => 'Member updated successfully',
+            'data' => $scopedMember->fresh(),
+        ]);
     }
 
     public function destroy(Request $request, Member $member)
