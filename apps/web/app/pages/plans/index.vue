@@ -10,7 +10,9 @@
       </div>
 
       <div class="toolbar-actions">
-        <v-chip color="accent" variant="tonal">{{ activePlans }} active</v-chip>
+        <v-chip color="primary" variant="tonal"
+          >{{ activePlans }} active</v-chip
+        >
         <v-btn color="primary">
           <Icon name="lucide:plus" size="18" class="mr-2" />
           Add plan
@@ -25,7 +27,7 @@
             <div class="panel-label">Plan library</div>
             <div class="text-h6 mt-2">Offers ready for sale</div>
           </div>
-          <v-btn color="accent" variant="outlined">Pricing tools next</v-btn>
+          <v-btn variant="outlined">Pricing tools next</v-btn>
         </div>
 
         <div class="table-scroll">

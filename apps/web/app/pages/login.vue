@@ -1,12 +1,24 @@
 <template>
   <div class="auth-shell">
-    <v-sheet class="auth-card app-surface">
+    <v-sheet class="auth-card app-surface" rounded="xl">
+      <div
+        style="
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          margin-bottom: 24px;
+        "
+      >
+        <div class="app-drawer__brand-icon">
+          <Icon name="lucide:dumbbell" size="20" />
+        </div>
+        <span style="font-size: 1.15rem; font-weight: 800">Gym SaaS</span>
+      </div>
+
       <div class="eyebrow">Admin access</div>
-      <h1 class="auth-card__title">Sign in to the gym control room.</h1>
+      <h1 class="auth-card__title">Sign in to your account</h1>
       <p class="muted-text mb-8">
-        Public registration is intentionally disabled for this MVP. Gym admins
-        create staff accounts internally, and everyone else enters through the
-        authenticated desk login.
+        Enter your credentials to access the gym management dashboard.
       </p>
 
       <v-alert v-if="errorMessage" class="mb-6" type="error" variant="tonal">
@@ -27,48 +39,93 @@
           autocomplete="current-password"
           label="Password"
           required
-        />
+        >
+          <template #append-inner>
+            <v-btn
+              icon
+              variant="text"
+              size="small"
+              @click="showPassword = !showPassword"
+            >
+              <Icon
+                :name="showPassword ? 'lucide:eye-off' : 'lucide:eye'"
+                size="18"
+              />
+            </v-btn>
+          </template>
+        </v-text-field>
 
-        <div class="toolbar-actions">
-          <v-btn
-            color="accent"
-            variant="outlined"
-            @click="showPassword = !showPassword"
-          >
-            {{ showPassword ? "Hide password" : "Show password" }}
-          </v-btn>
-          <v-spacer />
-          <v-btn :loading="isSubmitting" color="primary" type="submit">
-            Sign in
-          </v-btn>
-        </div>
+        <v-btn
+          :loading="isSubmitting"
+          color="primary"
+          type="submit"
+          size="large"
+          block
+        >
+          Sign in
+        </v-btn>
       </v-form>
     </v-sheet>
 
-    <v-sheet class="auth-side app-surface">
-      <div class="eyebrow">Seeded access</div>
-      <div class="text-h5 font-weight-bold mt-3 mb-4">
-        Use local demo accounts
+    <v-sheet class="auth-side app-surface" rounded="xl">
+      <div class="eyebrow">Demo accounts</div>
+      <div class="text-h6 font-weight-bold mt-3 mb-4">
+        Quick access for testing
       </div>
       <div class="hero-list">
-        <div class="hero-list__item">
-          <div class="font-weight-bold">superadmin@gymsaas.local</div>
-          <div class="muted-text mt-1">Platform-wide oversight</div>
+        <div
+          class="hero-list__item"
+          style="display: flex; align-items: center; gap: 12px"
+        >
+          <div
+            class="stat-card__icon stat-card__icon--purple"
+            style="width: 38px; height: 38px; border-radius: 10px"
+          >
+            <Icon name="lucide:shield" size="18" />
+          </div>
+          <div>
+            <div style="font-weight: 600; font-size: 0.88rem">
+              superadmin@gymsaas.local
+            </div>
+            <div class="muted-text" style="font-size: 0.8rem">
+              Platform-wide oversight
+            </div>
+          </div>
         </div>
-        <div class="hero-list__item">
-          <div class="font-weight-bold">admin@demofitness.local</div>
-          <div class="muted-text mt-1">Tenant-level gym administration</div>
+        <div
+          class="hero-list__item"
+          style="display: flex; align-items: center; gap: 12px"
+        >
+          <div
+            class="stat-card__icon stat-card__icon--blue"
+            style="width: 38px; height: 38px; border-radius: 10px"
+          >
+            <Icon name="lucide:user" size="18" />
+          </div>
+          <div>
+            <div style="font-weight: 600; font-size: 0.88rem">
+              admin@demofitness.local
+            </div>
+            <div class="muted-text" style="font-size: 0.8rem">
+              Tenant-level administration
+            </div>
+          </div>
         </div>
-        <div class="hero-list__item">
-          <div class="font-weight-bold">Password</div>
-          <div class="muted-text mt-1">password</div>
+        <div
+          class="hero-list__item"
+          style="display: flex; align-items: center; gap: 12px"
+        >
+          <div
+            class="stat-card__icon stat-card__icon--green"
+            style="width: 38px; height: 38px; border-radius: 10px"
+          >
+            <Icon name="lucide:key" size="18" />
+          </div>
+          <div>
+            <div style="font-weight: 600; font-size: 0.88rem">Password</div>
+            <div class="muted-text" style="font-size: 0.8rem">password</div>
+          </div>
         </div>
-      </div>
-
-      <div class="mt-8 muted-text">
-        Width behavior suggestion implemented: the shell fills the screen, but
-        content stays clamped for readability instead of pretending the whole
-        product should be designed at exactly 1024px or 1920px.
       </div>
     </v-sheet>
   </div>

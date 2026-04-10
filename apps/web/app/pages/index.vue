@@ -1,9 +1,9 @@
 <template>
-  <div class="hero-grid" style="grid-template-columns: 1fr">
-    <v-sheet class="hero-panel app-surface">
-      <div class="eyebrow">Gym Management</div>
+  <div class="hero-grid">
+    <v-sheet class="hero-panel app-surface" rounded="xl">
+      <div class="eyebrow">Gym Management Platform</div>
       <h1 class="hero-panel__title">
-        Run every desk, plan, and payment in one command center.
+        Run every desk, plan, and payment in one place.
       </h1>
       <p class="hero-panel__body">
         Manage members, subscriptions, payments, and attendance from a single
@@ -15,27 +15,41 @@
           <Icon name="lucide:layout-dashboard" size="18" class="mr-2" />
           Open dashboard
         </v-btn>
-        <v-btn color="accent" size="large" variant="outlined" to="/members">
-          <Icon name="lucide:users" size="18" class="mr-2" />
-          View members
+        <v-btn size="large" variant="outlined" to="/login">
+          <Icon name="lucide:log-in" size="18" class="mr-2" />
+          Sign in
         </v-btn>
       </div>
 
-      <div class="section-grid mt-8">
-        <v-card class="section-grid__half content-panel" rounded="xl">
+      <div
+        style="
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+          gap: 16px;
+          margin-top: 40px;
+        "
+      >
+        <v-card
+          class="content-panel"
+          rounded="xl"
+          v-for="mod in modules"
+          :key="mod.title"
+        >
           <v-card-text>
-            <div class="panel-label">Modules</div>
-            <div class="text-h6 mt-3 mb-4">Available now</div>
-            <div class="hero-list">
-              <div class="hero-list__item">
-                Dashboard metrics for members, revenue, and check-ins
-              </div>
-              <div class="hero-list__item">
-                Members, plans, subscriptions, branches, and tenants
-              </div>
-              <div class="hero-list__item">
-                Payments, attendance, and staff management
-              </div>
+            <div
+              :class="['stat-card__icon', mod.iconClass]"
+              style="margin-bottom: 12px"
+            >
+              <Icon :name="mod.icon" size="22" />
+            </div>
+            <div style="font-weight: 700; font-size: 1rem; margin-bottom: 4px">
+              {{ mod.title }}
+            </div>
+            <div
+              class="muted-text"
+              style="font-size: 0.88rem; line-height: 1.5"
+            >
+              {{ mod.description }}
             </div>
           </v-card-text>
         </v-card>
@@ -44,4 +58,31 @@
   </div>
 </template>
 
-<script setup lang="ts"></script>
+<script setup lang="ts">
+const modules = [
+  {
+    title: "Dashboard",
+    description: "Real-time metrics for members, revenue, and check-ins.",
+    icon: "lucide:layout-dashboard",
+    iconClass: "stat-card__icon--purple",
+  },
+  {
+    title: "Members & Plans",
+    description: "Manage members, plans, subscriptions, and branches.",
+    icon: "lucide:users",
+    iconClass: "stat-card__icon--blue",
+  },
+  {
+    title: "Payments",
+    description: "Track payments, verify transactions, and manage billing.",
+    icon: "lucide:wallet",
+    iconClass: "stat-card__icon--green",
+  },
+  {
+    title: "Attendance",
+    description: "Front-desk check-in flow and attendance tracking.",
+    icon: "lucide:scan-line",
+    iconClass: "stat-card__icon--amber",
+  },
+];
+</script>

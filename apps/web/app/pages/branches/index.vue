@@ -10,7 +10,7 @@
       </div>
 
       <div class="toolbar-actions">
-        <v-chip color="accent" variant="tonal"
+        <v-chip color="primary" variant="tonal"
           >{{ branches.length }} branches</v-chip
         >
         <v-btn color="primary">

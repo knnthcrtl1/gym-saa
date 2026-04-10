@@ -10,7 +10,7 @@
       </div>
 
       <div class="toolbar-actions">
-        <v-chip color="accent" variant="tonal"
+        <v-chip color="primary" variant="tonal"
           >{{ members.length }} loaded</v-chip
         >
         <v-btn color="primary">
@@ -56,7 +56,7 @@
             <div class="panel-label">Roster table</div>
             <div class="text-h6 mt-2">Current member list</div>
           </div>
-          <v-btn color="accent" variant="outlined">Filters next</v-btn>
+          <v-btn variant="outlined">Filters next</v-btn>
         </div>
 
         <div class="table-scroll">
