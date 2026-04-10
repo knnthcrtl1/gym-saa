@@ -140,6 +140,7 @@
 </template>
 
 <script setup lang="ts">
+import MemberFormDialog from "../../components/members/MemberFormDialog.vue";
 import type { Member } from "../../../types/api";
 
 type ApiPageError = {
