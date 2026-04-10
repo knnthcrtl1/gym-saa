@@ -1,17 +1,21 @@
 const publicRoutes = new Set(["/", "/login"]);
 
 export default defineNuxtRouteMiddleware(async (to) => {
+  if (publicRoutes.has(to.path)) {
+    return;
+  }
+
   const { user, initialized, fetchUser } = useAuth();
 
-  if (!initialized.value) {
-    await fetchUser();
+  if (!initialized.value || !user.value) {
+    try {
+      await fetchUser();
+    } catch {
+      return navigateTo("/login");
+    }
   }
 
-  if (user.value && to.path === "/login") {
-    return navigateTo("/dashboard");
-  }
-
-  if (!user.value && !publicRoutes.has(to.path)) {
+  if (!user.value) {
     return navigateTo("/login");
   }
 });

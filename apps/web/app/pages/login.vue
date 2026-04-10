@@ -75,8 +75,6 @@
 </template>
 
 <script setup lang="ts">
-const { login } = useAuth();
-
 const form = reactive({
   email: "admin@demofitness.local",
   password: "password",
@@ -91,6 +89,7 @@ const submit = async () => {
   isSubmitting.value = true;
 
   try {
+    const { login } = useAuth();
     await login({ ...form });
     await navigateTo("/dashboard");
   } catch (error) {

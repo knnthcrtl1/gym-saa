@@ -80,10 +80,6 @@
 </template>
 
 <script setup lang="ts">
-const { user } = useAuth();
-
-const primaryRoute = computed(() => (user.value ? "/dashboard" : "/login"));
-const primaryAction = computed(() =>
-  user.value ? "Open Dashboard" : "Sign in to admin",
-);
+const primaryRoute = "/login";
+const primaryAction = "Sign in to admin";
 </script>

@@ -4,8 +4,7 @@
       <v-navigation-drawer
         v-if="showAppShell"
         v-model="drawer"
-        :permanent="mdAndUp"
-        :temporary="!mdAndUp"
+        temporary
         class="app-drawer"
         width="288"
       >
@@ -57,7 +56,6 @@
 
       <v-app-bar v-if="showAppShell" class="app-bar" flat>
         <v-btn
-          v-if="!mdAndUp"
           class="mr-3"
           color="primary"
           variant="tonal"
@@ -104,14 +102,13 @@
 </template>
 
 <script setup lang="ts">
-import { useDisplay } from "vuetify";
+import type { AuthUser } from "../../types/api";
 
 const route = useRoute();
-const { mdAndUp } = useDisplay();
-const { user, logout } = useAuth();
+const user = useState<AuthUser | null>("auth-user", () => null);
 
 const publicRoutes = new Set(["/", "/login"]);
-const drawer = ref(false);
+const drawer = ref(true);
 
 const navigationItems = [
   {
@@ -170,22 +167,15 @@ const formatRole = (role?: string | null) =>
   role ? role.replace(/_/g, " ") : "No role loaded";
 
 const handleLogout = async () => {
+  const { logout } = useAuth();
   await logout();
   await navigateTo("/login");
 };
 
 watch(
-  mdAndUp,
-  (value) => {
-    drawer.value = value;
-  },
-  { immediate: true },
-);
-
-watch(
   () => route.path,
   () => {
-    if (!mdAndUp.value) {
+    if (showAppShell.value) {
       drawer.value = false;
     }
   },
