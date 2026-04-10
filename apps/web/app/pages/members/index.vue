@@ -5,9 +5,7 @@
         <div class="page-header__eyebrow">Member records</div>
         <h1 class="page-header__title">Members</h1>
         <p class="page-header__body">
-          Scan the active roster, spot blocked or inactive profiles quickly, and
-          keep the member table readable on mobile by allowing horizontal
-          overflow instead of crushing columns.
+          Active roster with status and contact details.
         </p>
       </div>
 
@@ -15,7 +13,10 @@
         <v-chip color="accent" variant="tonal"
           >{{ members.length }} loaded</v-chip
         >
-        <v-btn color="primary">Add member</v-btn>
+        <v-btn color="primary">
+          <Icon name="lucide:plus" size="18" class="mr-2" />
+          Add member
+        </v-btn>
       </div>
     </div>
 

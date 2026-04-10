@@ -5,14 +5,16 @@
         <div class="page-header__eyebrow">Commercial offers</div>
         <h1 class="page-header__title">Membership plans</h1>
         <p class="page-header__body">
-          Standardize duration, pricing, and status in one table so front-desk
-          sales and subscription activation stay aligned.
+          Manage pricing, duration, and availability for all membership offers.
         </p>
       </div>
 
       <div class="toolbar-actions">
         <v-chip color="accent" variant="tonal">{{ activePlans }} active</v-chip>
-        <v-btn color="primary">Add plan</v-btn>
+        <v-btn color="primary">
+          <Icon name="lucide:plus" size="18" class="mr-2" />
+          Add plan
+        </v-btn>
       </div>
     </div>
 

@@ -7,12 +7,12 @@ export default defineNuxtPlugin((nuxtApp) => {
     components,
     directives,
     theme: {
-      defaultTheme: "gymTheme",
+      defaultTheme: "gymDark",
       themes: {
-        gymTheme: {
+        gymDark: {
           dark: true,
           colors: {
-            primary: "#FF3B3B",
+            primary: "#7C5CFC",
             secondary: "#111111",
             accent: "#D4A017",
             background: "#0A0A0A",
@@ -20,7 +20,7 @@ export default defineNuxtPlugin((nuxtApp) => {
             "surface-bright": "#242424",
             "surface-light": "#2A2A2A",
             "surface-variant": "#141414",
-            "on-primary": "#111111",
+            "on-primary": "#FFFFFF",
             "on-secondary": "#F5F1E8",
             "on-surface": "#F5F1E8",
             "on-background": "#F5F1E8",
@@ -28,6 +28,27 @@ export default defineNuxtPlugin((nuxtApp) => {
             success: "#4ADE80",
             warning: "#D4A017",
             info: "#60A5FA",
+          },
+        },
+        gymLight: {
+          dark: false,
+          colors: {
+            primary: "#7C5CFC",
+            secondary: "#F5F5F5",
+            accent: "#D4A017",
+            background: "#F8F8FA",
+            surface: "#FFFFFF",
+            "surface-bright": "#FFFFFF",
+            "surface-light": "#F0F0F2",
+            "surface-variant": "#E8E8EC",
+            "on-primary": "#FFFFFF",
+            "on-secondary": "#1A1A1A",
+            "on-surface": "#1A1A1A",
+            "on-background": "#1A1A1A",
+            error: "#E53935",
+            success: "#2E7D32",
+            warning: "#F57F17",
+            info: "#1565C0",
           },
         },
       },

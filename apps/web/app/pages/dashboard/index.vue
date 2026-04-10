@@ -5,20 +5,19 @@
         <div class="page-header__eyebrow">Operations dashboard</div>
         <h1 class="page-header__title">Daily gym pulse</h1>
         <p class="page-header__body">
-          Track live member activity, subscriptions drifting out of cycle, and
-          the revenue picture for the current month from one high-contrast
-          dashboard.
+          Live overview of member activity, subscriptions, and revenue.
         </p>
       </div>
 
       <div class="toolbar-actions">
-        <v-chip v-if="preview.isPreview" color="accent" variant="tonal">
-          Preview mode
-        </v-chip>
-        <v-btn color="accent" variant="outlined" to="/attendance"
-          >Attendance flow</v-btn
-        >
-        <v-btn color="primary" to="/payments">Review payments</v-btn>
+        <v-btn color="accent" variant="outlined" to="/attendance">
+          <Icon name="lucide:scan-line" size="18" class="mr-2" />
+          Attendance
+        </v-btn>
+        <v-btn color="primary" to="/payments">
+          <Icon name="lucide:wallet" size="18" class="mr-2" />
+          Payments
+        </v-btn>
       </div>
     </div>
 
@@ -40,21 +39,17 @@
               <div class="panel-label">Priority lane</div>
               <div class="text-h6 mt-2">What to watch this shift</div>
             </div>
-            <v-chip color="accent" variant="tonal">Desk ready</v-chip>
           </div>
 
           <div class="hero-list mt-6">
             <div class="hero-list__item">
-              Revenue is tracked from verified payments only, so manual
-              verification affects this card.
+              Revenue is tracked from verified payments only.
             </div>
             <div class="hero-list__item">
-              Attendance logs are staged for future QR scan support but usable
-              for manual front-desk flow.
+              Attendance supports manual front-desk check-in flow.
             </div>
             <div class="hero-list__item">
-              The shell now clamps wide-screen content instead of stretching
-              cards edge to edge.
+              Expired subscriptions need follow-up for renewals.
             </div>
           </div>
         </v-card-text>
@@ -62,16 +57,17 @@
 
       <v-card class="section-grid__half content-panel">
         <v-card-text>
-          <div class="panel-label">Team controls</div>
-          <div class="text-h6 mt-2 mb-6">Fast actions</div>
+          <div class="panel-label">Quick access</div>
+          <div class="text-h6 mt-2 mb-6">Actions</div>
           <div class="toolbar-actions">
-            <v-btn color="primary" to="/members">Members</v-btn>
-            <v-btn color="accent" variant="outlined" to="/subscriptions"
-              >Subscriptions</v-btn
-            >
-            <v-btn color="accent" variant="outlined" to="/staff"
-              >Staff roster</v-btn
-            >
+            <v-btn color="primary" to="/members">
+              <Icon name="lucide:users" size="18" class="mr-2" />
+              Members
+            </v-btn>
+            <v-btn color="accent" variant="outlined" to="/subscriptions">
+              Subscriptions
+            </v-btn>
+            <v-btn color="accent" variant="outlined" to="/staff"> Staff </v-btn>
           </div>
         </v-card-text>
       </v-card>
@@ -80,7 +76,7 @@
 </template>
 
 <script setup lang="ts">
-const { data, preview } = await useDashboard();
+const { data } = await useDashboard();
 
 const stats = computed(
   () =>
@@ -103,24 +99,22 @@ const cards = computed(() => [
   {
     label: "Active members",
     value: stats.value.active_members,
-    caption: "Members currently in good standing",
+    caption: "Members in good standing",
   },
   {
     label: "Expired subscriptions",
     value: stats.value.expired_subscriptions,
-    caption: "Follow-up queue for renewals",
+    caption: "Due for renewal follow-up",
   },
   {
     label: "Today check-ins",
     value: stats.value.today_checkins,
-    caption: "Front-desk activity for the current day",
+    caption: "Front-desk activity today",
   },
   {
     label: "Monthly revenue",
     value: formatCurrency(stats.value.monthly_revenue),
-    caption: preview.value.isPreview
-      ? "Preview dataset while API auth is offline"
-      : "Paid transactions recorded this month",
+    caption: "Verified payments this month",
   },
 ]);
 </script>

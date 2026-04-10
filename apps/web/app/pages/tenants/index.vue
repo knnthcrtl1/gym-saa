@@ -5,9 +5,7 @@
         <div class="page-header__eyebrow">Multi-gym accounts</div>
         <h1 class="page-header__title">Tenants</h1>
         <p class="page-header__body">
-          Super-admin tenant management now has a proper list surface instead of
-          a placeholder, using the same dark data treatment as the rest of the
-          app shell.
+          Super-admin view of all gym accounts on the platform.
         </p>
       </div>
 
@@ -15,7 +13,10 @@
         <v-chip color="accent" variant="tonal"
           >{{ tenants.length }} tenants</v-chip
         >
-        <v-btn color="primary">Add tenant</v-btn>
+        <v-btn color="primary">
+          <Icon name="lucide:plus" size="18" class="mr-2" />
+          Add tenant
+        </v-btn>
       </div>
     </div>
 

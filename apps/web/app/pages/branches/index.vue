@@ -5,8 +5,7 @@
         <div class="page-header__eyebrow">Locations</div>
         <h1 class="page-header__title">Branches</h1>
         <p class="page-header__body">
-          Branch management is now promoted from placeholder state into a usable
-          list view, ready for later create and edit dialogs.
+          Manage gym locations and their contact details.
         </p>
       </div>
 
@@ -14,7 +13,10 @@
         <v-chip color="accent" variant="tonal"
           >{{ branches.length }} branches</v-chip
         >
-        <v-btn color="primary">Add branch</v-btn>
+        <v-btn color="primary">
+          <Icon name="lucide:plus" size="18" class="mr-2" />
+          Add branch
+        </v-btn>
       </div>
     </div>
 

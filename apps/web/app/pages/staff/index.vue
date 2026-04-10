@@ -3,52 +3,35 @@
     <div class="page-header">
       <div>
         <div class="page-header__eyebrow">Admin-managed access</div>
-        <h1 class="page-header__title">Staff management</h1>
+        <h1 class="page-header__title">Staff</h1>
         <p class="page-header__body">
-          Public signup is intentionally excluded. This area is prepared for gym
-          admins to create and manage operator accounts, branch assignment, and
-          role status.
+          Create and manage operator accounts, branch assignments, and roles.
         </p>
       </div>
 
       <div class="toolbar-actions">
-        <v-chip color="accent" variant="tonal">No public register</v-chip>
-        <v-btn color="primary">Add staff account</v-btn>
+        <v-btn color="primary">
+          <Icon name="lucide:plus" size="18" class="mr-2" />
+          Add staff account
+        </v-btn>
       </div>
     </div>
 
-    <div class="section-grid">
-      <v-card class="section-grid__half content-panel">
-        <v-card-text>
-          <div class="panel-label">Roles in scope</div>
-          <div class="text-h6 mt-2 mb-5">Current role model</div>
-          <div class="hero-list">
-            <div class="hero-list__item">
-              Super admin for platform-wide oversight
-            </div>
-            <div class="hero-list__item">
-              Gym admin for tenant-level control
-            </div>
-            <div class="hero-list__item">Staff for branch-bound operation</div>
+    <v-card class="content-panel">
+      <v-card-text>
+        <div class="empty-state">
+          <Icon
+            name="lucide:user-cog"
+            size="48"
+            class="mb-4"
+            style="opacity: 0.3"
+          />
+          <div class="text-h6">No staff accounts yet</div>
+          <div class="muted-text mt-2">
+            Staff accounts created by admins will appear here.
           </div>
-        </v-card-text>
-      </v-card>
-
-      <v-card class="section-grid__half content-panel">
-        <v-card-text>
-          <div class="panel-label">Planned controls</div>
-          <div class="text-h6 mt-2 mb-5">CRUD flow to add next</div>
-          <div class="hero-list">
-            <div class="hero-list__item">Create and suspend staff accounts</div>
-            <div class="hero-list__item">
-              Assign tenant and branch ownership
-            </div>
-            <div class="hero-list__item">
-              Track payment and attendance verification operators
-            </div>
-          </div>
-        </v-card-text>
-      </v-card>
-    </div>
+        </div>
+      </v-card-text>
+    </v-card>
   </div>
 </template>

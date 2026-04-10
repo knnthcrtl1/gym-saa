@@ -25,7 +25,11 @@
               :to="item.to"
               rounded="xl"
               color="primary"
-            />
+            >
+              <template #prepend>
+                <Icon :name="item.icon" size="20" class="mr-3" />
+              </template>
+            </v-list-item>
           </v-list>
 
           <v-spacer />
@@ -36,7 +40,7 @@
               {{ user?.name || "Gym Operator" }}
             </div>
             <div class="muted-text text-body-2 mt-1">
-              {{ user?.email || "Waiting for session" }}
+              {{ user?.email || "No session" }}
             </div>
             <div class="muted-text text-caption text-uppercase mt-3">
               {{ formatRole(user?.role) }}
@@ -61,24 +65,19 @@
           variant="tonal"
           @click="drawer = !drawer"
         >
+          <Icon name="lucide:menu" size="20" class="mr-2" />
           Menu
         </v-btn>
 
         <div>
-          <div class="app-bar__eyebrow">Dark mode default</div>
           <div class="app-bar__title">Gym SaaS</div>
         </div>
 
         <v-spacer />
 
-        <div class="text-right">
-          <div class="text-caption muted-text text-uppercase">
-            Live workspace
-          </div>
-          <div class="text-body-2 font-weight-medium">
-            Mobile friendly up to desktop-wide
-          </div>
-        </div>
+        <v-btn icon variant="text" @click="toggleTheme">
+          <Icon :name="isDark ? 'lucide:sun' : 'lucide:moon'" size="20" />
+        </v-btn>
       </v-app-bar>
 
       <v-main class="app-main">
@@ -103,58 +102,75 @@
 
 <script setup lang="ts">
 import type { AuthUser } from "../../types/api";
+import { useTheme } from "vuetify";
 
 const route = useRoute();
 const user = useState<AuthUser | null>("auth-user", () => null);
+const theme = useTheme();
 
 const publicRoutes = new Set(["/", "/login"]);
 const drawer = ref(true);
+
+const isDark = computed(() => theme.global.current.value.dark);
+
+const toggleTheme = () => {
+  theme.global.name.value = isDark.value ? "gymLight" : "gymDark";
+};
 
 const navigationItems = [
   {
     label: "Dashboard",
     description: "Operations overview",
     to: "/dashboard",
+    icon: "lucide:layout-dashboard",
   },
   {
     label: "Members",
     description: "Roster and statuses",
     to: "/members",
+    icon: "lucide:users",
   },
   {
     label: "Plans",
     description: "Offers and durations",
     to: "/plans",
+    icon: "lucide:credit-card",
   },
   {
     label: "Subscriptions",
-    description: "Lifecycle and billing state",
+    description: "Lifecycle and billing",
     to: "/subscriptions",
+    icon: "lucide:repeat",
   },
   {
     label: "Payments",
-    description: "Manual verification queue",
+    description: "Verification queue",
     to: "/payments",
+    icon: "lucide:wallet",
   },
   {
     label: "Attendance",
     description: "Check-ins and desk flow",
     to: "/attendance",
+    icon: "lucide:scan-line",
   },
   {
     label: "Staff",
     description: "Admin-managed operators",
     to: "/staff",
+    icon: "lucide:user-cog",
   },
   {
     label: "Branches",
     description: "Locations and ownership",
     to: "/branches",
+    icon: "lucide:map-pin",
   },
   {
     label: "Tenants",
     description: "Multi-gym accounts",
     to: "/tenants",
+    icon: "lucide:building-2",
   },
 ];
 

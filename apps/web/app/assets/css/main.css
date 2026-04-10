@@ -4,17 +4,17 @@
 @theme static {
   --font-sans: "Manrope", "Segoe UI", sans-serif;
 
-  --color-red-50: #fff1f1;
-  --color-red-100: #ffd9d9;
-  --color-red-200: #ffb3b3;
-  --color-red-300: #ff8c8c;
-  --color-red-400: #ff6666;
-  --color-red-500: #ff3b3b;
-  --color-red-600: #ea2121;
-  --color-red-700: #bf1818;
-  --color-red-800: #8f1212;
-  --color-red-900: #630c0c;
-  --color-red-950: #2f0404;
+  --color-purple-50: #f3f0ff;
+  --color-purple-100: #e0d9ff;
+  --color-purple-200: #c4b3ff;
+  --color-purple-300: #a78cff;
+  --color-purple-400: #9474fc;
+  --color-purple-500: #7c5cfc;
+  --color-purple-600: #6b4fe0;
+  --color-purple-700: #5740b8;
+  --color-purple-800: #42308f;
+  --color-purple-900: #2d2066;
+  --color-purple-950: #160f33;
 
   --color-amber-50: #fff9e8;
   --color-amber-100: #f7efc8;
@@ -43,8 +43,8 @@
 
 :root {
   color-scheme: dark;
-  --gym-primary: #ff3b3b;
-  --gym-primary-strong: #ea2121;
+  --gym-primary: #7c5cfc;
+  --gym-primary-strong: #6b4fe0;
   --gym-accent: #d4a017;
   --gym-accent-soft: #c9a227;
   --gym-background: #0a0a0a;
@@ -56,7 +56,7 @@
   --gym-text-primary: #f5f1e8;
   --gym-text-secondary: rgba(245, 241, 232, 0.72);
   --gym-text-muted: rgba(245, 241, 232, 0.56);
-  --gym-glow: rgba(255, 59, 59, 0.18);
+  --gym-glow: rgba(124, 92, 252, 0.18);
   --gym-shadow: 0 24px 80px rgba(0, 0, 0, 0.42);
   --gym-content-max: 1440px;
 }
@@ -73,7 +73,7 @@ body {
   background:
     radial-gradient(
       circle at top left,
-      rgba(255, 59, 59, 0.18),
+      rgba(124, 92, 252, 0.18),
       transparent 26%
     ),
     radial-gradient(
@@ -412,10 +412,10 @@ a {
 .app-nav .v-list-item--active {
   background: linear-gradient(
     90deg,
-    rgba(255, 59, 59, 0.18) 0%,
+    rgba(124, 92, 252, 0.18) 0%,
     rgba(212, 160, 23, 0.08) 100%
   );
-  border-color: rgba(255, 59, 59, 0.18);
+  border-color: rgba(124, 92, 252, 0.18);
 }
 
 .app-bar {
@@ -510,4 +510,68 @@ a {
   .auth-side {
     padding: 24px;
   }
+}
+
+/* ---- Light theme overrides ---- */
+.v-theme--gymLight {
+  --gym-primary: #7c5cfc;
+  --gym-primary-strong: #6b4fe0;
+  --gym-accent: #b8860b;
+  --gym-accent-soft: #c9a227;
+  --gym-background: #f8f8fa;
+  --gym-surface: #ffffff;
+  --gym-surface-soft: #f0f0f2;
+  --gym-surface-muted: #e8e8ec;
+  --gym-border: rgba(0, 0, 0, 0.08);
+  --gym-border-strong: rgba(0, 0, 0, 0.16);
+  --gym-text-primary: #1a1a1a;
+  --gym-text-secondary: rgba(26, 26, 26, 0.68);
+  --gym-text-muted: rgba(26, 26, 26, 0.48);
+  --gym-glow: rgba(124, 92, 252, 0.1);
+  --gym-shadow: 0 24px 80px rgba(0, 0, 0, 0.06);
+}
+
+.v-theme--gymLight body,
+.v-theme--gymLight .gym-app {
+  color: var(--gym-text-primary);
+}
+
+.v-theme--gymLight .app-surface {
+  background: rgba(255, 255, 255, 0.88);
+}
+
+.v-theme--gymLight .stat-card {
+  background: linear-gradient(180deg, #ffffff 0%, #f5f5f7 100%);
+}
+
+.v-theme--gymLight .content-panel,
+.v-theme--gymLight .table-panel,
+.v-theme--gymLight .info-panel {
+  background: rgba(255, 255, 255, 0.92);
+}
+
+.v-theme--gymLight .app-drawer {
+  background: rgba(250, 250, 252, 0.96) !important;
+}
+
+.v-theme--gymLight .app-bar {
+  background: rgba(248, 248, 250, 0.88) !important;
+}
+
+.v-theme--gymLight .hero-list__item {
+  background: rgba(0, 0, 0, 0.03);
+  border-color: var(--gym-border);
+}
+
+.v-theme--gymLight .app-user-card {
+  background: rgba(0, 0, 0, 0.02);
+}
+
+.v-theme--gymLight .app-nav .v-list-item--active {
+  background: linear-gradient(
+    90deg,
+    rgba(124, 92, 252, 0.1) 0%,
+    rgba(212, 160, 23, 0.05) 100%
+  );
+  border-color: rgba(124, 92, 252, 0.12);
 }

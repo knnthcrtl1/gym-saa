@@ -1,8 +1,11 @@
 import vuetify from "vite-plugin-vuetify";
+import type { PluginOption } from "vite";
 
 export default defineNuxtConfig({
   compatibilityDate: "2025-01-01",
   devtools: { enabled: true },
+
+  modules: ["@nuxt/icon"],
 
   css: ["vuetify/styles", "@/assets/css/main.css"],
 
@@ -11,7 +14,7 @@ export default defineNuxtConfig({
   },
 
   vite: {
-    plugins: [vuetify({ autoImport: true })],
+    plugins: [vuetify({ autoImport: true }) as unknown as PluginOption],
     ssr: {
       noExternal: ["vuetify"],
     },

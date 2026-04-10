@@ -5,15 +5,16 @@
         <div class="page-header__eyebrow">Membership lifecycle</div>
         <h1 class="page-header__title">Subscriptions</h1>
         <p class="page-header__body">
-          Track membership periods, payment state, and expirations in one
-          billing-oriented table. This is the operating layer between plans,
-          members, and the incoming payment queue.
+          Track membership periods, payment state, and expirations.
         </p>
       </div>
 
       <div class="toolbar-actions">
         <v-chip color="accent" variant="tonal">{{ activeCount }} active</v-chip>
-        <v-btn color="primary">Add subscription</v-btn>
+        <v-btn color="primary">
+          <Icon name="lucide:plus" size="18" class="mr-2" />
+          Add subscription
+        </v-btn>
       </div>
     </div>
 
