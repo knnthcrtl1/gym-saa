@@ -75,6 +75,11 @@
 </template>
 
 <script setup lang="ts">
+definePageMeta({
+  middleware: ["guest"],
+  layout: false,
+});
+
 const form = reactive({
   email: "admin@demofitness.local",
   password: "password",

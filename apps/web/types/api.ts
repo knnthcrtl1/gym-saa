@@ -14,19 +14,11 @@ export type PaginatedResponse<T> = {
   total: number;
 };
 
-export type AuthUser = {
-  id: number;
-  tenant_id?: number | null;
-  branch_id?: number | null;
-  name: string;
-  email: string;
-  role: "super_admin" | "gym_admin" | "staff";
-  status: "active" | "inactive";
-};
+export type { AuthUser } from "./auth";
 
 export type LoginResponse = {
   message: string;
-  user: AuthUser;
+  user: import("./auth").AuthUser;
 };
 
 export type Tenant = {

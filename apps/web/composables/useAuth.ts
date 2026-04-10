@@ -1,113 +1,65 @@
-import type { AuthUser, LoginResponse } from "../types/api";
-
-type LoginPayload = {
-  email: string;
-  password: string;
-};
-
-const publicStatus = (error: unknown) => {
-  const typedError = error as {
-    status?: number;
-    statusCode?: number;
-    response?: { status?: number };
-    data?: { message?: string };
-  };
-
-  return (
-    typedError?.statusCode ??
-    typedError?.status ??
-    typedError?.response?.status ??
-    500
-  );
-};
-
-const resolveSanctumBase = (apiBase: string) => {
-  try {
-    return new URL(apiBase).origin;
-  } catch {
-    return apiBase.replace(/\/api\/v\d+.*$/, "") || "/";
-  }
-};
+import type { AuthUser, LoginPayload, MeResponse } from "../types/auth";
 
 export const useAuth = () => {
-  const { api } = useApi();
   const config = useRuntimeConfig();
+  const user = useState<AuthUser | null>("auth.user", () => null);
+  const initialized = useState<boolean>("auth.initialized", () => false);
 
-  const user = useState<AuthUser | null>("auth-user", () => null);
-  const initialized = useState<boolean>("auth-initialized", () => false);
-  const pending = useState<boolean>("auth-pending", () => false);
+  const api = $fetch.create({
+    baseURL: config.public.apiBase,
+    credentials: "include",
+    headers: {
+      Accept: "application/json",
+      "X-Requested-With": "XMLHttpRequest",
+    },
+  });
 
-  const clear = () => {
-    user.value = null;
+  const csrf = async () => {
+    await api("/sanctum/csrf-cookie");
   };
 
-  const fetchUser = async (force = false) => {
-    if (pending.value) {
-      return user.value;
-    }
-
-    if (initialized.value && !force) {
-      return user.value;
-    }
-
-    pending.value = true;
-
+  const fetchUser = async () => {
     try {
-      user.value = await api<AuthUser>("/me");
-    } catch (error) {
-      if ([401, 419].includes(publicStatus(error))) {
-        user.value = null;
-      } else {
-        throw error;
-      }
+      const response = await api<MeResponse>("/api/v1/me");
+      user.value = response.user;
+      return response.user;
+    } catch {
+      user.value = null;
+      return null;
     } finally {
       initialized.value = true;
-      pending.value = false;
     }
-
-    return user.value;
-  };
-
-  const ensureCsrfCookie = async () => {
-    const sanctumBase = resolveSanctumBase(config.public.apiBase);
-
-    await $fetch("/sanctum/csrf-cookie", {
-      baseURL: sanctumBase,
-      credentials: "include",
-      headers: import.meta.server ? useRequestHeaders(["cookie"]) : undefined,
-    });
   };
 
   const login = async (payload: LoginPayload) => {
-    await ensureCsrfCookie();
+    await csrf();
 
-    const response = await api<LoginResponse>("/login", {
+    await api("/api/v1/login", {
       method: "POST",
       body: payload,
     });
 
-    user.value = response.user;
-    initialized.value = true;
-
-    return response.user;
+    await fetchUser();
   };
 
   const logout = async () => {
     try {
-      await api("/logout", { method: "POST" });
+      await api("/api/v1/logout", {
+        method: "POST",
+      });
     } finally {
-      clear();
+      user.value = null;
       initialized.value = true;
+      await navigateTo("/login");
     }
   };
 
   return {
     user,
     initialized,
-    pending,
+    csrf,
     fetchUser,
     login,
     logout,
-    clear,
   };
 };

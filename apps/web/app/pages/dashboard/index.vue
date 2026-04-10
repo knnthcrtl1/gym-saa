@@ -76,6 +76,10 @@
 </template>
 
 <script setup lang="ts">
+definePageMeta({
+  middleware: ["auth"],
+});
+
 const { data } = await useDashboard();
 
 const stats = computed(

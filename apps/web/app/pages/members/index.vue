@@ -91,6 +91,10 @@
 </template>
 
 <script setup lang="ts">
+definePageMeta({
+  middleware: ["auth"],
+});
+
 const { data } = await useMembers();
 
 const members = computed(() => data.value?.data ?? []);

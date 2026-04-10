@@ -60,6 +60,10 @@
 </template>
 
 <script setup lang="ts">
+definePageMeta({
+  middleware: ["auth"],
+});
+
 const { data } = await usePlans();
 
 const plans = computed(() => data.value?.data ?? []);

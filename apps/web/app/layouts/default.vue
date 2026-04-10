@@ -105,7 +105,7 @@ import type { AuthUser } from "../../types/api";
 import { useTheme } from "vuetify";
 
 const route = useRoute();
-const user = useState<AuthUser | null>("auth-user", () => null);
+const user = useState<AuthUser | null>("auth.user", () => null);
 const theme = useTheme();
 
 const publicRoutes = new Set(["/", "/login"]);

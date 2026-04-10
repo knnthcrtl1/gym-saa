@@ -5,10 +5,11 @@ export const useApi = () => {
     : undefined;
 
   const api = $fetch.create({
-    baseURL: config.public.apiBase,
+    baseURL: `${config.public.apiBase}/api/v1`,
     credentials: "include",
     headers: {
       Accept: "application/json",
+      "X-Requested-With": "XMLHttpRequest",
       ...forwardedHeaders,
     },
   });

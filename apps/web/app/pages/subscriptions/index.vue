@@ -71,6 +71,10 @@
 </template>
 
 <script setup lang="ts">
+definePageMeta({
+  middleware: ["auth"],
+});
+
 const { data } = await useSubscriptions();
 
 const subscriptions = computed(() => data.value?.data ?? []);

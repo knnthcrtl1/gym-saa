@@ -54,6 +54,10 @@
 </template>
 
 <script setup lang="ts">
+definePageMeta({
+  middleware: ["auth"],
+});
+
 const { data } = await useBranches();
 
 const branches = computed(() => data.value?.data ?? []);

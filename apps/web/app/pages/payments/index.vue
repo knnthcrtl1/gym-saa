@@ -1,3 +1,9 @@
+<script setup lang="ts">
+definePageMeta({
+  middleware: ["auth"],
+});
+</script>
+
 <template>
   <div class="app-page">
     <div class="page-header">
