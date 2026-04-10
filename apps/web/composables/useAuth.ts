@@ -1,5 +1,13 @@
 import type { AuthUser, LoginPayload, MeResponse } from "../types/auth";
 
+function readCookie(name: string): string | undefined {
+  if (import.meta.server) return undefined;
+  const match = document.cookie.match(
+    new RegExp("(^|;\\s*)" + name + "=([^;]*)"),
+  );
+  return match ? decodeURIComponent(match[2]) : undefined;
+}
+
 export const useAuth = () => {
   const config = useRuntimeConfig();
   const user = useState<AuthUser | null>("auth.user", () => null);
@@ -11,6 +19,14 @@ export const useAuth = () => {
     headers: {
       Accept: "application/json",
       "X-Requested-With": "XMLHttpRequest",
+    },
+    onRequest({ options }) {
+      const token = readCookie("XSRF-TOKEN");
+      if (token) {
+        const headers = new Headers(options.headers);
+        headers.set("X-XSRF-TOKEN", token);
+        options.headers = headers;
+      }
     },
   });
 
