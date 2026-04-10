@@ -1,31 +1,90 @@
 <template>
-  <div>
-    <div class="d-flex justify-space-between align-center mb-4">
-      <h1 class="text-h5 font-weight-bold">Members</h1>
-      <v-btn color="primary">Add Member</v-btn>
+  <div class="app-page">
+    <div class="page-header">
+      <div>
+        <div class="page-header__eyebrow">Member records</div>
+        <h1 class="page-header__title">Members</h1>
+        <p class="page-header__body">
+          Scan the active roster, spot blocked or inactive profiles quickly, and
+          keep the member table readable on mobile by allowing horizontal
+          overflow instead of crushing columns.
+        </p>
+      </div>
+
+      <div class="toolbar-actions">
+        <v-chip color="accent" variant="tonal"
+          >{{ members.length }} loaded</v-chip
+        >
+        <v-btn color="primary">Add member</v-btn>
+      </div>
     </div>
 
-    <v-card rounded="xl">
-      <v-table>
-        <thead>
-          <tr>
-            <th>Member Code</th>
-            <th>Name</th>
-            <th>Email</th>
-            <th>Phone</th>
-            <th>Status</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="member in members" :key="member.id">
-            <td>{{ member.member_code }}</td>
-            <td>{{ member.first_name }} {{ member.last_name }}</td>
-            <td>{{ member.email || "-" }}</td>
-            <td>{{ member.phone || "-" }}</td>
-            <td>{{ member.status }}</td>
-          </tr>
-        </tbody>
-      </v-table>
+    <div class="metric-grid">
+      <v-row>
+        <v-col cols="12" md="4">
+          <v-card class="content-panel">
+            <v-card-text>
+              <div class="panel-label">Active</div>
+              <div class="stat-card__value">{{ activeCount }}</div>
+            </v-card-text>
+          </v-card>
+        </v-col>
+        <v-col cols="12" md="4">
+          <v-card class="content-panel">
+            <v-card-text>
+              <div class="panel-label">Blocked</div>
+              <div class="stat-card__value">{{ blockedCount }}</div>
+            </v-card-text>
+          </v-card>
+        </v-col>
+        <v-col cols="12" md="4">
+          <v-card class="content-panel">
+            <v-card-text>
+              <div class="panel-label">With email</div>
+              <div class="stat-card__value">{{ contactableCount }}</div>
+            </v-card-text>
+          </v-card>
+        </v-col>
+      </v-row>
+    </div>
+
+    <v-card class="table-panel">
+      <v-card-text>
+        <div class="table-toolbar mb-4">
+          <div>
+            <div class="panel-label">Roster table</div>
+            <div class="text-h6 mt-2">Current member list</div>
+          </div>
+          <v-btn color="accent" variant="outlined">Filters next</v-btn>
+        </div>
+
+        <div class="table-scroll">
+          <v-table>
+            <thead>
+              <tr>
+                <th>Member code</th>
+                <th>Name</th>
+                <th>Email</th>
+                <th>Phone</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="member in members" :key="member.id">
+                <td>{{ member.member_code }}</td>
+                <td>{{ member.first_name }} {{ member.last_name }}</td>
+                <td>{{ member.email || "-" }}</td>
+                <td>{{ member.phone || "-" }}</td>
+                <td>
+                  <span :class="statusClass(member.status)">
+                    {{ member.status }}
+                  </span>
+                </td>
+              </tr>
+            </tbody>
+          </v-table>
+        </div>
+      </v-card-text>
     </v-card>
   </div>
 </template>
@@ -34,4 +93,18 @@
 const { data } = await useMembers();
 
 const members = computed(() => data.value?.data ?? []);
+
+const activeCount = computed(
+  () => members.value.filter((member) => member.status === "active").length,
+);
+
+const blockedCount = computed(
+  () => members.value.filter((member) => member.status === "blocked").length,
+);
+
+const contactableCount = computed(
+  () => members.value.filter((member) => Boolean(member.email)).length,
+);
+
+const statusClass = (status: string) => `status-chip status-chip--${status}`;
 </script>
