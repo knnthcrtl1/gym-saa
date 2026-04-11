@@ -20,7 +20,13 @@ class MembershipPlanController extends Controller
             $request,
         );
 
-        return response()->json($query->latest()->paginate(10));
+        if ($request->filled('status')) {
+            $query->where('status', $request->string('status')->toString());
+        }
+
+        return response()->json(
+            $query->latest()->paginate($request->integer('per_page', 10))
+        );
     }
 
     public function store(StoreMembershipPlanRequest $request)
@@ -33,7 +39,10 @@ class MembershipPlanController extends Controller
 
         $plan = MembershipPlan::create($data);
 
-        return response()->json($plan, 201);
+        return response()->json([
+            'message' => 'Membership plan created successfully',
+            'data' => $plan,
+        ], 201);
     }
 
     public function show(Request $request, MembershipPlan $membershipPlan)
@@ -43,7 +52,9 @@ class MembershipPlanController extends Controller
             $request,
         );
 
-        return response()->json($query->firstOrFail());
+        return response()->json([
+            'data' => $query->firstOrFail(),
+        ]);
     }
 
     public function update(UpdateMembershipPlanRequest $request, MembershipPlan $membershipPlan)
@@ -60,7 +71,10 @@ class MembershipPlanController extends Controller
 
         $plan->update($data);
 
-        return response()->json($plan);
+        return response()->json([
+            'message' => 'Membership plan updated successfully',
+            'data' => $plan->fresh(),
+        ]);
     }
 
     public function destroy(Request $request, MembershipPlan $membershipPlan)

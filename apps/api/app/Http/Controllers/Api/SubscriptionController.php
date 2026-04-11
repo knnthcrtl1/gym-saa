@@ -24,7 +24,9 @@ class SubscriptionController extends Controller
             $query->where('status', $request->string('status')->toString());
         }
 
-        return response()->json($query->latest()->paginate(10));
+        return response()->json(
+            $query->latest()->paginate($request->integer('per_page', 10))
+        );
     }
 
     public function store(StoreSubscriptionRequest $request)
@@ -41,7 +43,10 @@ class SubscriptionController extends Controller
 
         $subscription = Subscription::create($data);
 
-        return response()->json($subscription->load(['member', 'membershipPlan']), 201);
+        return response()->json([
+            'message' => 'Subscription created successfully',
+            'data' => $subscription->load(['member', 'membershipPlan']),
+        ], 201);
     }
 
     public function show(Request $request, Subscription $subscription)
@@ -51,7 +56,9 @@ class SubscriptionController extends Controller
             $request,
         );
 
-        return response()->json($query->firstOrFail());
+        return response()->json([
+            'data' => $query->firstOrFail(),
+        ]);
     }
 
     public function update(UpdateSubscriptionRequest $request, Subscription $subscription)
@@ -72,7 +79,10 @@ class SubscriptionController extends Controller
 
         $scopedSubscription->update($data);
 
-        return response()->json($scopedSubscription->load(['member', 'membershipPlan']));
+        return response()->json([
+            'message' => 'Subscription updated successfully',
+            'data' => $scopedSubscription->fresh()->load(['member', 'membershipPlan']),
+        ]);
     }
 
     public function destroy(Request $request, Subscription $subscription)

@@ -18,10 +18,20 @@ export type MemberPayload = {
   joined_at?: string | null;
 };
 
-type MemberListParams = {
+export type MemberSortField =
+  | "created_at"
+  | "joined_at"
+  | "member_code"
+  | "name"
+  | "status";
+
+export type MemberListParams = {
   search?: string;
   status?: MemberPayload["status"];
   page?: number;
+  per_page?: number;
+  sort_by?: MemberSortField;
+  direction?: "asc" | "desc";
 };
 
 type MemberResponse = {
@@ -35,6 +45,7 @@ type MemberMutationResponse = {
 
 type DeleteMemberResponse = {
   message: string;
+  deleted?: number;
 };
 
 export const useMembers = () => {
@@ -70,11 +81,19 @@ export const useMembers = () => {
     });
   };
 
+  const bulkRemove = (ids: number[]) => {
+    return api<DeleteMemberResponse>("/members/bulk-delete", {
+      method: "DELETE",
+      body: { ids },
+    });
+  };
+
   return {
     list,
     get,
     create,
     update,
     remove,
+    bulkRemove,
   };
 };

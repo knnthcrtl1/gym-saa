@@ -1,20 +1,42 @@
 <template>
-  <v-dialog v-model="internalOpen" max-width="820">
-    <v-card rounded="xl">
-      <v-card-title class="d-flex justify-space-between align-center">
-        <span class="text-h6 font-weight-bold">
-          {{ isEdit ? "Edit Member" : "Add Member" }}
-        </span>
+  <AppModalShell
+    v-model="internalOpen"
+    :eyebrow="isEdit ? 'Edit member' : 'Add member'"
+    :title="dialogTitle"
+    :description="dialogDescription"
+    :max-width="920"
+    @close="closeDialog"
+  >
+    <div class="section-stack">
+      <div class="member-form-hero">
+        <div class="surface-avatar member-form-hero__avatar">
+          {{ memberInitials }}
+        </div>
+        <div class="member-form-hero__copy">
+          <div class="text-h6 font-weight-bold">{{ dialogHeroTitle }}</div>
+          <div class="member-form-hero__meta">
+            <span class="surface-pill">
+              <Icon name="lucide:id-card" size="16" />
+              {{ form.member_code || "Code pending" }}
+            </span>
+            <AppStatusTag :label="form.status" />
+          </div>
+        </div>
+      </div>
 
-        <v-btn icon="mdi-close" variant="text" @click="closeDialog" />
-      </v-card-title>
+      <v-alert v-if="errorMessage" type="error" variant="tonal">
+        {{ errorMessage }}
+      </v-alert>
 
-      <v-divider />
-
-      <v-card-text class="pt-4">
-        <v-alert v-if="errorMessage" type="error" variant="tonal" class="mb-4">
-          {{ errorMessage }}
-        </v-alert>
+      <section class="section-panel">
+        <div class="section-panel__header">
+          <div>
+            <h2 class="section-panel__title">Profile</h2>
+            <p class="section-panel__body">
+              Core member identity details and roster status.
+            </p>
+          </div>
+        </div>
 
         <v-row>
           <v-col cols="12" md="6">
@@ -23,15 +45,6 @@
               label="Member Code"
               variant="outlined"
               :error-messages="errors.member_code"
-            />
-          </v-col>
-
-          <v-col cols="12" md="6">
-            <v-text-field
-              v-model="form.qr_code_value"
-              label="QR Code Value"
-              variant="outlined"
-              :error-messages="errors.qr_code_value"
             />
           </v-col>
 
@@ -50,24 +63,6 @@
               label="Last Name"
               variant="outlined"
               :error-messages="errors.last_name"
-            />
-          </v-col>
-
-          <v-col cols="12" md="6">
-            <v-text-field
-              v-model="form.email"
-              label="Email"
-              variant="outlined"
-              :error-messages="errors.email"
-            />
-          </v-col>
-
-          <v-col cols="12" md="6">
-            <v-text-field
-              v-model="form.phone"
-              label="Phone"
-              variant="outlined"
-              :error-messages="errors.phone"
             />
           </v-col>
 
@@ -100,6 +95,37 @@
               :error-messages="errors.status"
             />
           </v-col>
+        </v-row>
+      </section>
+
+      <section class="section-panel">
+        <div class="section-panel__header">
+          <div>
+            <h2 class="section-panel__title">Contact</h2>
+            <p class="section-panel__body">
+              Primary contact details and emergency contact information.
+            </p>
+          </div>
+        </div>
+
+        <v-row>
+          <v-col cols="12" md="6">
+            <v-text-field
+              v-model="form.email"
+              label="Email"
+              variant="outlined"
+              :error-messages="errors.email"
+            />
+          </v-col>
+
+          <v-col cols="12" md="6">
+            <v-text-field
+              v-model="form.phone"
+              label="Phone"
+              variant="outlined"
+              :error-messages="errors.phone"
+            />
+          </v-col>
 
           <v-col cols="12">
             <v-textarea
@@ -128,7 +154,21 @@
               :error-messages="errors.emergency_contact_phone"
             />
           </v-col>
+        </v-row>
+      </section>
 
+      <section class="section-panel">
+        <div class="section-panel__header">
+          <div>
+            <h2 class="section-panel__title">Membership setup</h2>
+            <p class="section-panel__body">
+              Access references and tenant or branch ownership for this member
+              record.
+            </p>
+          </div>
+        </div>
+
+        <v-row>
           <v-col cols="12" md="6">
             <v-text-field
               v-model="form.joined_at"
@@ -139,7 +179,16 @@
             />
           </v-col>
 
-          <v-col cols="12" md="3">
+          <v-col cols="12" md="6">
+            <v-text-field
+              v-model="form.qr_code_value"
+              label="QR Code Value"
+              variant="outlined"
+              :error-messages="errors.qr_code_value"
+            />
+          </v-col>
+
+          <v-col cols="12" md="6">
             <v-text-field
               v-model.number="form.tenant_id"
               label="Tenant ID"
@@ -149,7 +198,7 @@
             />
           </v-col>
 
-          <v-col cols="12" md="3">
+          <v-col cols="12" md="6">
             <v-text-field
               v-model.number="form.branch_id"
               label="Branch ID"
@@ -159,22 +208,48 @@
             />
           </v-col>
         </v-row>
-      </v-card-text>
+      </section>
+    </div>
 
-      <v-divider />
+    <template #footer-prepend>
+      <AppButton
+        v-if="isEdit"
+        tone="danger"
+        appearance="text"
+        :loading="deleteLoading"
+        @click="confirmDeleteOpen = true"
+      >
+        <Icon name="lucide:trash-2" size="16" class="mr-2" />
+        Delete member
+      </AppButton>
+    </template>
 
-      <v-card-actions class="pa-4">
-        <v-spacer />
-        <v-btn variant="text" @click="closeDialog">Cancel</v-btn>
-        <v-btn color="primary" :loading="loading" @click="submitForm">
-          {{ isEdit ? "Update" : "Create" }}
-        </v-btn>
-      </v-card-actions>
-    </v-card>
-  </v-dialog>
+    <template #footer>
+      <AppButton tone="neutral" appearance="text" @click="closeDialog">
+        Cancel
+      </AppButton>
+      <AppButton tone="primary" :loading="loading" @click="submitForm">
+        {{ isEdit ? "Save changes" : "Create member" }}
+      </AppButton>
+    </template>
+  </AppModalShell>
+
+  <AppConfirmDialog
+    v-model="confirmDeleteOpen"
+    title="Delete member"
+    :message="deletePrompt"
+    confirm-text="Delete"
+    tone="danger"
+    :loading="deleteLoading"
+    @confirm="deleteMember"
+  />
 </template>
 
 <script setup lang="ts">
+import AppButton from "../ui/AppButton.vue";
+import AppConfirmDialog from "../ui/AppConfirmDialog.vue";
+import AppModalShell from "../ui/AppModalShell.vue";
+import AppStatusTag from "../ui/AppStatusTag.vue";
 import type { Member } from "../../../types/api";
 import type { MemberPayload } from "../../../composables/useMembers";
 
@@ -194,10 +269,11 @@ const props = defineProps<{
 const emit = defineEmits<{
   "update:modelValue": [value: boolean];
   saved: [];
+  deleted: [];
 }>();
 
 const { user } = useAuth();
-const { create, update } = useMembers();
+const { create, update, remove } = useMembers();
 
 const internalOpen = computed({
   get: () => props.modelValue,
@@ -206,6 +282,8 @@ const internalOpen = computed({
 
 const isEdit = computed(() => Boolean(props.member?.id));
 const loading = ref(false);
+const deleteLoading = ref(false);
+const confirmDeleteOpen = ref(false);
 const errorMessage = ref("");
 
 const statusOptions: MemberPayload["status"][] = [
@@ -367,4 +445,92 @@ const submitForm = async () => {
     loading.value = false;
   }
 };
+
+const deleteMember = async () => {
+  if (!props.member) {
+    confirmDeleteOpen.value = false;
+    return;
+  }
+
+  deleteLoading.value = true;
+  clearErrors();
+
+  try {
+    await remove(props.member.id);
+    emit("deleted");
+    confirmDeleteOpen.value = false;
+    closeDialog();
+  } catch (error) {
+    const typedError = error as ApiFormError;
+
+    errorMessage.value = typedError.data?.message ?? "Unable to delete member.";
+  } finally {
+    deleteLoading.value = false;
+  }
+};
+
+const dialogTitle = computed(() =>
+  isEdit.value ? "Edit member profile" : "Create member profile",
+);
+
+const dialogDescription = computed(() =>
+  isEdit.value
+    ? "Update member details without losing sight of save, cancel, or delete actions."
+    : "Create a new member record using the shared modal layout and pinned action bar.",
+);
+
+const dialogHeroTitle = computed(() => {
+  const fullName = `${form.first_name} ${form.last_name}`.trim();
+
+  return fullName || (isEdit.value ? "Member profile" : "New member");
+});
+
+const memberInitials = computed(() => {
+  const first = form.first_name.charAt(0);
+  const last = form.last_name.charAt(0);
+  const initials = `${first}${last}`.trim();
+
+  return initials ? initials.toUpperCase() : "NM";
+});
+
+const deletePrompt = computed(() => {
+  const fullName =
+    `${form.first_name} ${form.last_name}`.trim() || "this member";
+
+  return `Delete ${fullName}? This action cannot be undone.`;
+});
 </script>
+
+<style scoped>
+.member-form-hero {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 20px;
+  border: 1px solid var(--gym-border);
+  border-radius: 20px;
+  background: linear-gradient(
+    135deg,
+    rgba(79, 70, 229, 0.08),
+    rgba(255, 255, 255, 0.92)
+  );
+}
+
+.member-form-hero__copy {
+  min-width: 0;
+}
+
+.member-form-hero__meta {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+}
+
+@media (max-width: 640px) {
+  .member-form-hero {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
+</style>

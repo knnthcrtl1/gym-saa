@@ -25,6 +25,7 @@ Route::prefix('v1')->group(function () {
 
         Route::apiResource('tenants', TenantController::class);
         Route::apiResource('branches', BranchController::class);
+        Route::delete('/members/bulk-delete', [MemberController::class, 'bulkDestroy']);
         Route::apiResource('members', MemberController::class);
         Route::apiResource('membership-plans', MembershipPlanController::class);
         Route::apiResource('subscriptions', SubscriptionController::class);

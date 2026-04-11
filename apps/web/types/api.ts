@@ -46,6 +46,8 @@ export type Member = {
   id: number;
   tenant_id: number;
   branch_id: number;
+  created_at?: string | null;
+  updated_at?: string | null;
   member_code: string;
   first_name: string;
   last_name: string;

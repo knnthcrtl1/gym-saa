@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\BulkDeleteMembersRequest;
 use App\Http\Requests\StoreMemberRequest;
 use App\Http\Requests\UpdateMemberRequest;
 use App\Models\Member;
@@ -12,6 +13,13 @@ use Illuminate\Http\Request;
 class MemberController extends Controller
 {
     use BelongsToTenant;
+
+    private const SORTABLE_COLUMNS = [
+        'created_at' => 'created_at',
+        'joined_at' => 'joined_at',
+        'member_code' => 'member_code',
+        'status' => 'status',
+    ];
 
     public function index(Request $request)
     {
@@ -35,7 +43,21 @@ class MemberController extends Controller
             $query->where('status', $request->string('status')->toString());
         }
 
-        return response()->json($query->latest()->paginate(10));
+        $direction = $request->string('direction')->toString() === 'asc' ? 'asc' : 'desc';
+        $perPage = min(max($request->integer('per_page', 10), 1), 100);
+        $sortBy = $request->string('sort_by')->toString();
+
+        if ($sortBy === 'name') {
+            $query->orderBy('first_name', $direction)->orderBy('last_name', $direction);
+        } elseif (array_key_exists($sortBy, self::SORTABLE_COLUMNS)) {
+            $query->orderBy(self::SORTABLE_COLUMNS[$sortBy], $direction);
+        } else {
+            $query->latest();
+        }
+
+        return response()->json(
+            $query->paginate($perPage)->withQueryString(),
+        );
     }
 
     public function store(StoreMemberRequest $request)
@@ -104,6 +126,23 @@ class MemberController extends Controller
 
         return response()->json([
             'message' => 'Member deleted successfully',
+        ]);
+    }
+
+    public function bulkDestroy(BulkDeleteMembersRequest $request)
+    {
+        $query = $this->scopeToBranchIfStaff(
+            $this->scopeToTenant(Member::query(), $request),
+            $request,
+        )->whereIn('id', $request->validated('ids'));
+
+        $deleted = $query->delete();
+
+        return response()->json([
+            'message' => $deleted === 1
+                ? '1 member deleted successfully'
+                : "{$deleted} members deleted successfully",
+            'deleted' => $deleted,
         ]);
     }
 }
