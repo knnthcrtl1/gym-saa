@@ -5,8 +5,10 @@ use App\Http\Controllers\Api\BranchController;
 use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\MemberController;
 use App\Http\Controllers\Api\MembershipPlanController;
+use App\Http\Controllers\Api\PaymentController;
 use App\Http\Controllers\Api\SubscriptionController;
 use App\Http\Controllers\Api\TenantController;
+use App\Http\Controllers\Api\WebhookController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1')->group(function () {
@@ -17,6 +19,7 @@ Route::prefix('v1')->group(function () {
     ]));
 
     Route::post('/login', [AuthController::class, 'login']);
+    Route::post('/webhooks/paymongo', [WebhookController::class, 'paymongo']);
 
     Route::middleware('auth:sanctum')->group(function () {
         Route::post('/logout', [AuthController::class, 'logout']);
@@ -29,5 +32,9 @@ Route::prefix('v1')->group(function () {
         Route::apiResource('members', MemberController::class);
         Route::apiResource('membership-plans', MembershipPlanController::class);
         Route::apiResource('subscriptions', SubscriptionController::class);
+        Route::get('/payments', [PaymentController::class, 'index']);
+        Route::post('/payments/intent', [PaymentController::class, 'createIntent']);
+        Route::post('/payments/manual', [PaymentController::class, 'storeManual']);
+        Route::get('/payments/{payment}', [PaymentController::class, 'show']);
     });
 });

@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Payment extends Model
 {
@@ -15,7 +16,16 @@ class Payment extends Model
         'branch_id',
         'member_id',
         'subscription_id',
+        'gateway',
+        'currency',
+        'gateway_checkout_session_id',
+        'gateway_payment_id',
+        'gateway_reference',
+        'checkout_url',
+        'gateway_metadata',
+        'raw_response',
         'payment_date',
+        'paid_at',
         'amount',
         'payment_method',
         'reference_no',
@@ -28,7 +38,10 @@ class Payment extends Model
     {
         return [
             'payment_date' => 'datetime',
+            'paid_at' => 'datetime',
             'amount' => 'decimal:2',
+            'gateway_metadata' => 'array',
+            'raw_response' => 'array',
         ];
     }
 
@@ -55,5 +68,10 @@ class Payment extends Model
     public function recorder(): BelongsTo
     {
         return $this->belongsTo(User::class, 'recorded_by');
+    }
+
+    public function webhooks(): HasMany
+    {
+        return $this->hasMany(PaymentWebhook::class);
     }
 }

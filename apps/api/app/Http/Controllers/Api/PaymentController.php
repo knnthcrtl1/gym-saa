@@ -3,47 +3,105 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\StoreManualPaymentRequest;
+use App\Http\Requests\StorePaymentIntentRequest;
+use App\Models\Member;
+use App\Models\Payment;
+use App\Models\Subscription;
+use App\Services\Payments\PaymentService;
+use App\Support\BelongsToTenant;
 use Illuminate\Http\Request;
+use Symfony\Component\HttpKernel\Exception\HttpException;
 
 class PaymentController extends Controller
 {
-    /**
-     * Display a listing of the resource.
-     */
-    public function index()
+    use BelongsToTenant;
+
+    public function __construct(private readonly PaymentService $paymentService)
     {
-        //
     }
 
-    /**
-     * Store a newly created resource in storage.
-     */
-    public function store(Request $request)
+    public function index(Request $request)
     {
-        //
+        $query = $this->scopeToBranchIfStaff(
+            $this->scopeToTenant(Payment::with(['member', 'subscription', 'recorder']), $request),
+            $request,
+        );
+
+        if ($request->filled('status')) {
+            $query->where('status', $request->string('status')->toString());
+        }
+
+        if ($request->filled('subscription_id')) {
+            $query->where('subscription_id', $request->integer('subscription_id'));
+        }
+
+        if ($request->filled('member_id')) {
+            $query->where('member_id', $request->integer('member_id'));
+        }
+
+        return response()->json(
+            $query->latest('payment_date')->paginate($request->integer('per_page', 10))
+        );
     }
 
-    /**
-     * Display the specified resource.
-     */
-    public function show(string $id)
+    public function createIntent(StorePaymentIntentRequest $request)
     {
-        //
+        $data = $request->validated();
+        $this->ensureScopedEntities($request, $data);
+
+        $result = $this->paymentService->createCheckoutPayment($data, $request->user());
+
+        return response()->json([
+            'message' => 'Payment checkout created successfully',
+            'data' => [
+                'payment' => $result['payment'],
+                'checkout_url' => $result['checkout_url'],
+            ],
+        ], 201);
     }
 
-    /**
-     * Update the specified resource in storage.
-     */
-    public function update(Request $request, string $id)
+    public function storeManual(StoreManualPaymentRequest $request)
     {
-        //
+        $data = $request->validated();
+        $this->ensureScopedEntities($request, $data);
+
+        $payment = $this->paymentService->recordManualPayment($data, $request->user());
+
+        return response()->json([
+            'message' => 'Payment recorded successfully',
+            'data' => $payment,
+        ], 201);
     }
 
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(string $id)
+    public function show(Request $request, Payment $payment)
     {
-        //
+        $query = $this->scopeToBranchIfStaff(
+            $this->scopeToTenant(Payment::with(['member', 'subscription', 'recorder'])->whereKey($payment->id), $request),
+            $request,
+        );
+
+        return response()->json([
+            'data' => $query->firstOrFail(),
+        ]);
+    }
+
+    private function ensureScopedEntities(Request $request, array $data): void
+    {
+        $this->scopeToBranchIfStaff(
+            $this->scopeToTenant(Member::query()->whereKey($data['member_id']), $request),
+            $request,
+        )->firstOrFail();
+
+        if (! empty($data['subscription_id'])) {
+            $subscription = $this->scopeToBranchIfStaff(
+                $this->scopeToTenant(Subscription::query()->whereKey($data['subscription_id']), $request),
+                $request,
+            )->firstOrFail();
+
+            if ((int) $subscription->member_id !== (int) $data['member_id']) {
+                throw new HttpException(422, 'Selected subscription does not belong to the provided member.');
+            }
+        }
     }
 }

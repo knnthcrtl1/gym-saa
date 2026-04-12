@@ -206,6 +206,12 @@
       @deleted="handleDeleted"
     />
 
+    <PaymentDialog
+      v-model="paymentDialogOpen"
+      :subscription="paymentSubscription"
+      @saved="handleSaved"
+    />
+
     <AppConfirmDialog
       v-model="confirmDeleteOpen"
       title="Delete subscription"
@@ -220,6 +226,7 @@
 
 <script setup lang="ts">
 import PageHeader from "../../components/admin/PageHeader.vue";
+import PaymentDialog from "../../components/payments/PaymentDialog.vue";
 import TableShell from "../../components/admin/TableShell.vue";
 import SubscriptionFormDialog from "../../components/subscriptions/SubscriptionFormDialog.vue";
 import AppButton from "../../components/ui/AppButton.vue";
@@ -247,8 +254,10 @@ const loading = ref(false);
 const deleteLoading = ref(false);
 const subscriptions = ref<Subscription[]>([]);
 const selectedSubscription = ref<Subscription | null>(null);
+const paymentSubscription = ref<Subscription | null>(null);
 const statusFilter = ref<SubscriptionPayload["status"] | "all">("all");
 const dialogOpen = ref(false);
+const paymentDialogOpen = ref(false);
 const confirmDeleteOpen = ref(false);
 const errorMessage = ref("");
 const confirmDeleteId = ref<number | null>(null);
@@ -262,6 +271,11 @@ const pagination = reactive({
 });
 
 const rowActions: AppRowActionItem[] = [
+  {
+    key: "pay",
+    label: "Record payment",
+    icon: "lucide:wallet",
+  },
   {
     key: "edit",
     label: "Edit subscription",
@@ -321,6 +335,11 @@ const openEdit = (subscription: Subscription) => {
   dialogOpen.value = true;
 };
 
+const openPayment = (subscription: Subscription) => {
+  paymentSubscription.value = subscription;
+  paymentDialogOpen.value = true;
+};
+
 const handleSaved = async () => {
   await loadSubscriptions();
 };
@@ -372,6 +391,11 @@ const resolveReloadPage = (removedCount: number) => {
 };
 
 const handleRowAction = (action: string, subscription: Subscription) => {
+  if (action === "pay") {
+    openPayment(subscription);
+    return;
+  }
+
   if (action === "edit") {
     openEdit(subscription);
     return;

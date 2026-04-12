@@ -35,4 +35,16 @@ return [
         ],
     ],
 
+    'paymongo' => [
+        'base_url' => env('PAYMONGO_BASE_URL', 'https://api.paymongo.com/v1'),
+        'secret_key' => env('PAYMONGO_SECRET_KEY'),
+        'webhook_secret' => env('PAYMONGO_WEBHOOK_SECRET'),
+        'payment_methods' => array_values(array_filter(array_map(
+            static fn (string $method) => trim($method),
+            explode(',', env('PAYMONGO_PAYMENT_METHODS', 'card,gcash,paymaya,grab_pay')),
+        ))),
+        'success_url' => env('PAYMONGO_SUCCESS_URL', rtrim(env('FRONTEND_URL', 'http://localhost:3000'), '/').'/payments?checkout=success'),
+        'cancel_url' => env('PAYMONGO_CANCEL_URL', rtrim(env('FRONTEND_URL', 'http://localhost:3000'), '/').'/payments?checkout=cancelled'),
+    ],
+
 ];

@@ -93,6 +93,34 @@ export type Subscription = {
   membership_plan?: MembershipPlan;
 };
 
+export type Payment = {
+  id: number;
+  tenant_id: number;
+  branch_id: number;
+  member_id: number;
+  subscription_id?: number | null;
+  gateway?: string | null;
+  currency: string;
+  gateway_checkout_session_id?: string | null;
+  gateway_payment_id?: string | null;
+  gateway_reference?: string | null;
+  checkout_url?: string | null;
+  gateway_metadata?: Record<string, string | null> | null;
+  raw_response?: Record<string, unknown> | null;
+  payment_date: string;
+  paid_at?: string | null;
+  amount: string | number;
+  payment_method: "cash" | "gcash" | "bank_transfer" | "card" | "online";
+  reference_no?: string | null;
+  notes?: string | null;
+  status: "pending" | "paid" | "failed" | "refunded";
+  recorded_by?: number | null;
+  created_at?: string | null;
+  updated_at?: string | null;
+  member?: Member;
+  subscription?: Subscription;
+};
+
 export type DashboardStats = {
   active_members: number;
   expired_subscriptions: number;
