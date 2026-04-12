@@ -19,7 +19,7 @@
               <Icon name="lucide:badge-dollar-sign" size="16" />
               {{ formattedAmount }}
             </span>
-            <span class="surface-pill" v-if="selectedPlanName">
+            <span v-if="selectedPlanName" class="surface-pill">
               <Icon name="lucide:shield-check" size="16" />
               {{ selectedPlanName }}
             </span>
@@ -90,6 +90,9 @@
               label="End date"
               type="date"
               variant="outlined"
+              readonly
+              hint="Calculated from the selected plan and start date."
+              persistent-hint
               :error-messages="errors.end_date"
             />
           </v-col>
@@ -234,7 +237,11 @@ import AppStatusTag from "../ui/AppStatusTag.vue";
 import type { Member, MembershipPlan, Subscription } from "../../../types/api";
 import type { SubscriptionPayload } from "../../../composables/useSubscriptions";
 
-type SubscriptionFormErrors = Record<keyof SubscriptionPayload, string[]>;
+type SubscriptionFormValues = SubscriptionPayload & {
+  end_date: string;
+};
+
+type SubscriptionFormErrors = Record<keyof SubscriptionFormValues, string[]>;
 type ApiFormError = {
   data?: {
     message?: string;
@@ -298,7 +305,7 @@ const subscriptionStatuses: SubscriptionPayload["status"][] = [
   "cancelled",
 ];
 
-const defaultForm = (): SubscriptionPayload => ({
+const defaultForm = (): SubscriptionFormValues => ({
   tenant_id: user.value?.tenant_id ?? 0,
   branch_id: user.value?.branch_id ?? 0,
   member_id: props.member?.id ?? 0,
@@ -311,7 +318,7 @@ const defaultForm = (): SubscriptionPayload => ({
   status: "active",
 });
 
-const form = reactive<SubscriptionPayload>(defaultForm());
+const form = reactive<SubscriptionFormValues>(defaultForm());
 
 const createErrors = (): SubscriptionFormErrors => ({
   tenant_id: [],
@@ -360,6 +367,62 @@ const fillForm = (subscription: Subscription) => {
   nextTick(() => {
     syncingForm.value = false;
   });
+};
+
+const calculateEndDatePreview = (
+  startDateValue: string,
+  plan?: MembershipPlan | null,
+) => {
+  if (!startDateValue || !plan) {
+    return "";
+  }
+
+  const startDate = new Date(`${startDateValue}T00:00:00`);
+
+  if (Number.isNaN(startDate.getTime())) {
+    return "";
+  }
+
+  const endDate = new Date(startDate);
+
+  switch (plan.duration_type) {
+    case "day":
+      endDate.setDate(endDate.getDate() + plan.duration_value);
+      break;
+    case "week":
+      endDate.setDate(endDate.getDate() + plan.duration_value * 7);
+      break;
+    case "month":
+      endDate.setMonth(endDate.getMonth() + plan.duration_value);
+      break;
+    case "year":
+      endDate.setFullYear(endDate.getFullYear() + plan.duration_value);
+      break;
+    case "session":
+    default:
+      endDate.setMonth(endDate.getMonth() + 1);
+      break;
+  }
+
+  return endDate.toISOString().slice(0, 10);
+};
+
+const syncDerivedPlanFields = () => {
+  if (syncingForm.value) {
+    return;
+  }
+
+  const plan = selectedPlan.value;
+
+  if (!plan) {
+    form.end_date = "";
+    return;
+  }
+
+  form.amount = Number(plan.price);
+  form.sessions_remaining =
+    plan.duration_type === "session" ? (plan.session_limit ?? null) : null;
+  form.end_date = calculateEndDatePreview(form.start_date, plan);
 };
 
 const appendUniqueMember = (member?: Member | null) => {
@@ -468,24 +531,34 @@ watch(
 
 watch(
   () => form.membership_plan_id,
-  (planId) => {
-    if (!planId || syncingForm.value) {
+  () => {
+    if (!form.membership_plan_id) {
+      if (!syncingForm.value) {
+        form.end_date = "";
+      }
       return;
     }
 
-    const selectedPlan = availablePlans.value.find(
-      (plan) => plan.id === planId,
-    );
+    syncDerivedPlanFields();
+  },
+);
 
-    if (!selectedPlan) {
+watch(
+  () => form.start_date,
+  () => {
+    if (!form.start_date || !selectedPlan.value) {
+      if (!syncingForm.value) {
+        form.end_date = "";
+      }
       return;
     }
 
-    form.amount = Number(selectedPlan.price);
-    form.sessions_remaining =
-      selectedPlan.duration_type === "session"
-        ? (selectedPlan.session_limit ?? null)
-        : null;
+    if (!syncingForm.value) {
+      form.end_date = calculateEndDatePreview(
+        form.start_date,
+        selectedPlan.value,
+      );
+    }
   },
 );
 
@@ -494,16 +567,18 @@ const closeDialog = () => {
 };
 
 const normalizePayload = (): SubscriptionPayload => ({
-  ...form,
   tenant_id: Number(form.tenant_id),
   branch_id: Number(form.branch_id),
   member_id: Number(form.member_id),
   membership_plan_id: Number(form.membership_plan_id),
+  start_date: form.start_date,
   amount: Number(form.amount),
   sessions_remaining:
     form.sessions_remaining === null || form.sessions_remaining === undefined
       ? null
       : Number(form.sessions_remaining),
+  payment_status: form.payment_status,
+  status: form.status,
 });
 
 const assignBackendErrors = (backendErrors?: Record<string, string[]>) => {

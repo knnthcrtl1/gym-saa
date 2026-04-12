@@ -6,7 +6,6 @@ export type SubscriptionPayload = {
   member_id: number;
   membership_plan_id: number;
   start_date: string;
-  end_date: string;
   amount: number;
   sessions_remaining?: number | null;
   payment_status: "unpaid" | "partial" | "paid";

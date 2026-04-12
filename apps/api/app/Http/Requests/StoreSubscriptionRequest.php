@@ -19,7 +19,7 @@ class StoreSubscriptionRequest extends FormRequest
             'member_id' => ['required', 'exists:members,id'],
             'membership_plan_id' => ['required', 'exists:membership_plans,id'],
             'start_date' => ['required', 'date'],
-            'end_date' => ['required', 'date', 'after_or_equal:start_date'],
+            'end_date' => ['sometimes', 'date', 'after_or_equal:start_date'],
             'amount' => ['required', 'numeric', 'min:0'],
             'sessions_remaining' => ['nullable', 'integer', 'min:0'],
             'payment_status' => ['required', 'in:unpaid,partial,paid'],
