@@ -114,11 +114,38 @@ export type Payment = {
   reference_no?: string | null;
   notes?: string | null;
   status: "pending" | "paid" | "failed" | "refunded";
+  verification_status: "not_required" | "pending" | "verified" | "rejected";
+  reviewed_at?: string | null;
+  reviewed_by?: number | null;
+  review_notes?: string | null;
   recorded_by?: number | null;
   created_at?: string | null;
   updated_at?: string | null;
   member?: Member;
   subscription?: Subscription;
+  reviewer?: {
+    id: number;
+    name: string;
+  } | null;
+  proofs?: PaymentProof[];
+};
+
+export type PaymentProof = {
+  id: number;
+  payment_id: number;
+  disk: string;
+  path: string;
+  original_name: string;
+  mime_type?: string | null;
+  file_size?: number | null;
+  uploaded_by?: number | null;
+  created_at?: string | null;
+  updated_at?: string | null;
+  url?: string | null;
+  uploader?: {
+    id: number;
+    name: string;
+  } | null;
 };
 
 export type DashboardStats = {

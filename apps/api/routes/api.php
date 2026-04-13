@@ -35,6 +35,9 @@ Route::prefix('v1')->group(function () {
         Route::get('/payments', [PaymentController::class, 'index']);
         Route::post('/payments/intent', [PaymentController::class, 'createIntent']);
         Route::post('/payments/manual', [PaymentController::class, 'storeManual']);
+        Route::post('/payments/{payment}/proof', [PaymentController::class, 'uploadProof']);
+        Route::put('/payments/{payment}/verify', [PaymentController::class, 'verify']);
+        Route::put('/payments/{payment}/reject', [PaymentController::class, 'reject']);
         Route::get('/payments/{payment}', [PaymentController::class, 'show']);
     });
 });

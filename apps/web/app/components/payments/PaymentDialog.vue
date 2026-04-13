@@ -41,8 +41,8 @@
           <div>
             <h2 class="section-panel__title">Payment mode</h2>
             <p class="section-panel__body">
-              Choose hosted checkout for PayMongo, or record a manual settlement
-              directly in the system.
+              Route this payment through PayMongo checkout, an immediate cash
+              settlement, or a proof-based owner QR / bank transfer review.
             </p>
           </div>
         </div>
@@ -60,14 +60,19 @@
           </v-col>
 
           <v-col cols="12" md="6">
-            <v-select
-              v-model="form.status"
-              :items="statusOptions"
-              label="Manual status"
-              variant="outlined"
-              :disabled="form.mode === 'online'"
-              :error-messages="errors.status"
-            />
+            <v-alert type="info" variant="tonal">
+              <template v-if="form.mode === 'online'">
+                PayMongo creates a hosted checkout link and waits for the
+                webhook to settle the payment.
+              </template>
+              <template v-else-if="form.mode === 'cash'">
+                Cash payments are recorded as paid immediately by staff.
+              </template>
+              <template v-else>
+                Owner QR and bank transfer payments stay pending until staff
+                verify the uploaded proof.
+              </template>
+            </v-alert>
           </v-col>
         </v-row>
       </section>
@@ -151,8 +156,9 @@
           <div>
             <h2 class="section-panel__title">Settlement details</h2>
             <p class="section-panel__body">
-              Hosted checkout ignores manual settlement fields and redirects to
-              PayMongo after the record is created.
+              Hosted checkout handles the settlement externally. Cash settles
+              immediately, while owner QR and bank transfer require proof for
+              review.
             </p>
           </div>
         </div>
@@ -160,12 +166,21 @@
         <v-row>
           <v-col cols="12" md="6">
             <v-select
+              v-if="form.mode === 'proof'"
               v-model="form.payment_method"
-              :items="paymentMethods"
+              :items="proofPaymentMethods"
+              item-title="label"
+              item-value="value"
               label="Payment method"
               variant="outlined"
-              :disabled="form.mode === 'online'"
               :error-messages="errors.payment_method"
+            />
+            <v-text-field
+              v-else
+              :model-value="paymentMethodLabel"
+              label="Payment method"
+              variant="outlined"
+              disabled
             />
           </v-col>
 
@@ -189,6 +204,28 @@
             />
           </v-col>
         </v-row>
+      </section>
+
+      <section v-if="form.mode === 'proof'" class="section-panel">
+        <div class="section-panel__header">
+          <div>
+            <h2 class="section-panel__title">Proof upload</h2>
+            <p class="section-panel__body">
+              Upload a receipt screenshot or PDF before submitting this payment
+              for staff review.
+            </p>
+          </div>
+        </div>
+
+        <v-file-input
+          v-model="proofFile"
+          label="Payment proof"
+          variant="outlined"
+          accept=".jpg,.jpeg,.png,.pdf"
+          prepend-icon="lucide:paperclip"
+          show-size
+          :error-messages="errors.proof"
+        />
       </section>
     </div>
 
@@ -214,17 +251,18 @@ import type {
 } from "../../../composables/usePayments";
 import { usePayments } from "../../../composables/usePayments";
 
-type PaymentMode = "online" | "manual";
+type PaymentMode = "online" | "cash" | "proof";
 
 type PaymentDialogForm = PaymentIntentPayload &
   Pick<
     ManualPaymentPayload,
-    "payment_date" | "payment_method" | "reference_no" | "status"
+    "payment_date" | "payment_method" | "reference_no"
   > & {
     mode: PaymentMode;
+    notes: string;
   };
 
-type PaymentDialogErrors = Record<keyof PaymentDialogForm, string[]>;
+type PaymentDialogErrors = Record<keyof PaymentDialogForm | "proof", string[]>;
 type ApiFormError = {
   data?: {
     message?: string;
@@ -252,6 +290,8 @@ const { list: listMembers } = useMembers();
 const { list: listSubscriptions } = useSubscriptions();
 const { createIntent, recordManual } = usePayments();
 
+const proofFile = ref<File | null>(null);
+
 const internalOpen = computed({
   get: () => props.modelValue,
   set: (value: boolean) => emit("update:modelValue", value),
@@ -267,22 +307,16 @@ const memberOptions = ref<SelectOption[]>([]);
 
 const modeOptions = [
   { label: "Hosted PayMongo checkout", value: "online" },
-  { label: "Manual payment record", value: "manual" },
+  { label: "Cash payment", value: "cash" },
+  { label: "Owner QR / bank transfer", value: "proof" },
 ] as const;
 
-const paymentMethods: Payment["payment_method"][] = [
-  "cash",
-  "gcash",
-  "bank_transfer",
-  "card",
-  "online",
-];
-
-const statusOptions: Payment["status"][] = [
-  "pending",
-  "paid",
-  "failed",
-  "refunded",
+const proofPaymentMethods = [
+  { label: "GCash", value: "gcash" as Payment["payment_method"] },
+  {
+    label: "Bank transfer",
+    value: "bank_transfer" as Payment["payment_method"],
+  },
 ];
 
 const defaultForm = (): PaymentDialogForm => ({
@@ -295,9 +329,8 @@ const defaultForm = (): PaymentDialogForm => ({
   currency: "PHP",
   notes: "",
   payment_date: new Date().toISOString().slice(0, 10),
-  payment_method: "cash",
+  payment_method: "online",
   reference_no: "",
-  status: "paid",
 });
 
 const form = reactive<PaymentDialogForm>(defaultForm());
@@ -314,7 +347,7 @@ const createErrors = (): PaymentDialogErrors => ({
   payment_date: [],
   payment_method: [],
   reference_no: [],
-  status: [],
+  proof: [],
 });
 
 const errors = reactive<PaymentDialogErrors>(createErrors());
@@ -375,17 +408,27 @@ const selectedSubscriptionLabel = computed(() => {
 });
 
 const dialogTitle = computed(() =>
-  form.mode === "online" ? "Create checkout payment" : "Record manual payment",
+  form.mode === "online"
+    ? "Create checkout payment"
+    : form.mode === "cash"
+      ? "Record cash payment"
+      : "Submit proof-based payment",
 );
 
 const dialogDescription = computed(() =>
   form.mode === "online"
     ? "Create a pending payment, attach PayMongo checkout metadata, and redirect the user to the hosted checkout page."
-    : "Capture an already-settled payment and synchronize the linked subscription status immediately.",
+    : form.mode === "cash"
+      ? "Capture a cash settlement and synchronize the linked subscription status immediately."
+      : "Record an owner QR or bank transfer payment and keep it pending until staff verify the uploaded proof.",
 );
 
 const actionLabel = computed(() =>
-  form.mode === "online" ? "Continue to checkout" : "Record payment",
+  form.mode === "online"
+    ? "Continue to checkout"
+    : form.mode === "cash"
+      ? "Record cash payment"
+      : "Submit for review",
 );
 
 const heroTitle = computed(() => {
@@ -404,9 +447,29 @@ const memberInitials = computed(() => {
 });
 
 const formattedAmount = computed(() => formatCurrency(form.amount));
-const modeChip = computed(() =>
-  form.mode === "online" ? "Hosted checkout" : `Manual ${form.status}`,
-);
+const modeChip = computed(() => {
+  if (form.mode === "online") {
+    return "Hosted checkout";
+  }
+
+  if (form.mode === "cash") {
+    return "Cash settlement";
+  }
+
+  return "Pending proof review";
+});
+
+const paymentMethodLabel = computed(() => {
+  if (form.mode === "online") {
+    return "PayMongo hosted checkout";
+  }
+
+  if (form.mode === "cash") {
+    return "cash";
+  }
+
+  return form.payment_method;
+});
 
 const mapErrors = (apiErrors?: Record<string, string[]>) => {
   if (!apiErrors) {
@@ -422,6 +485,7 @@ const mapErrors = (apiErrors?: Record<string, string[]>) => {
 
 const resetForm = () => {
   Object.assign(form, defaultForm());
+  proofFile.value = null;
   clearErrors();
 };
 
@@ -472,6 +536,12 @@ const submitForm = async () => {
   loading.value = true;
   clearErrors();
 
+  if (form.mode === "proof" && !proofFile.value) {
+    errors.proof = ["Upload a payment proof before submitting this payment."];
+    loading.value = false;
+    return;
+  }
+
   try {
     if (form.mode === "online") {
       const response = await createIntent({
@@ -501,10 +571,11 @@ const submitForm = async () => {
       subscription_id: form.subscription_id,
       payment_date: form.payment_date,
       amount: Number(form.amount),
-      payment_method: form.payment_method,
+      payment_method: form.mode === "cash" ? "cash" : form.payment_method,
       reference_no: form.reference_no || null,
       notes: form.notes || null,
-      status: form.status,
+      status: form.mode === "cash" ? "paid" : "pending",
+      proof: form.mode === "proof" ? proofFile.value : null,
     });
 
     emit("saved");
@@ -571,13 +642,16 @@ watch(
   (mode) => {
     if (mode === "online") {
       form.payment_method = "online";
-      form.status = "paid";
       return;
     }
 
-    if (form.payment_method === "online") {
+    if (mode === "cash") {
       form.payment_method = "cash";
+      proofFile.value = null;
+      return;
     }
+
+    form.payment_method = "gcash";
   },
 );
 </script>

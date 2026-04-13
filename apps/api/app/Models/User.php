@@ -47,6 +47,16 @@ class User extends Authenticatable
         return $this->hasMany(Payment::class, 'recorded_by');
     }
 
+    public function reviewedPayments(): HasMany
+    {
+        return $this->hasMany(Payment::class, 'reviewed_by');
+    }
+
+    public function uploadedPaymentProofs(): HasMany
+    {
+        return $this->hasMany(PaymentProof::class, 'uploaded_by');
+    }
+
     public function verifiedCheckins(): HasMany
     {
         return $this->hasMany(Checkin::class, 'verified_by');

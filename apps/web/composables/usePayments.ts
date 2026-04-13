@@ -29,6 +29,15 @@ export type ManualPaymentPayload = {
   reference_no?: string | null;
   notes?: string | null;
   status?: Payment["status"];
+  proof?: File | null;
+};
+
+export type PaymentProofUploadPayload = {
+  proof: File;
+};
+
+export type PaymentReviewPayload = {
+  notes?: string | null;
 };
 
 type PaymentResponse = {
@@ -51,6 +60,27 @@ type PaymentMutationResponse = {
 export const usePayments = () => {
   const { api } = useApi();
 
+  const toFormData = (
+    payload: ManualPaymentPayload | PaymentProofUploadPayload,
+  ) => {
+    const formData = new FormData();
+
+    for (const [key, value] of Object.entries(payload)) {
+      if (value === null || value === undefined || value === "") {
+        continue;
+      }
+
+      if (value instanceof File) {
+        formData.append(key, value);
+        continue;
+      }
+
+      formData.append(key, String(value));
+    }
+
+    return formData;
+  };
+
   const list = (params?: PaymentListParams) => {
     return api<PaginatedResponse<Payment>>("/payments", {
       query: params,
@@ -71,6 +101,27 @@ export const usePayments = () => {
   const recordManual = (payload: ManualPaymentPayload) => {
     return api<PaymentMutationResponse>("/payments/manual", {
       method: "POST",
+      body: toFormData(payload),
+    });
+  };
+
+  const uploadProof = (id: number, payload: PaymentProofUploadPayload) => {
+    return api<PaymentMutationResponse>(`/payments/${id}/proof`, {
+      method: "POST",
+      body: toFormData(payload),
+    });
+  };
+
+  const verify = (id: number, payload?: PaymentReviewPayload) => {
+    return api<PaymentMutationResponse>(`/payments/${id}/verify`, {
+      method: "PUT",
+      body: payload,
+    });
+  };
+
+  const reject = (id: number, payload?: PaymentReviewPayload) => {
+    return api<PaymentMutationResponse>(`/payments/${id}/reject`, {
+      method: "PUT",
       body: payload,
     });
   };
@@ -80,5 +131,8 @@ export const usePayments = () => {
     get,
     createIntent,
     recordManual,
+    uploadProof,
+    verify,
+    reject,
   };
 };

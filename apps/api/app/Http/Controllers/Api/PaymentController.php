@@ -3,8 +3,10 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\ReviewPaymentRequest;
 use App\Http\Requests\StoreManualPaymentRequest;
 use App\Http\Requests\StorePaymentIntentRequest;
+use App\Http\Requests\UploadPaymentProofRequest;
 use App\Models\Member;
 use App\Models\Payment;
 use App\Models\Subscription;
@@ -24,7 +26,7 @@ class PaymentController extends Controller
     public function index(Request $request)
     {
         $query = $this->scopeToBranchIfStaff(
-            $this->scopeToTenant(Payment::with(['member', 'subscription', 'recorder']), $request),
+            $this->scopeToTenant(Payment::with(['member', 'subscription.membershipPlan', 'recorder', 'reviewer', 'proofs.uploader']), $request),
             $request,
         );
 
@@ -66,7 +68,11 @@ class PaymentController extends Controller
         $data = $request->validated();
         $this->ensureScopedEntities($request, $data);
 
-        $payment = $this->paymentService->recordManualPayment($data, $request->user());
+        $payment = $this->paymentService->recordManualPayment(
+            $data,
+            $request->user(),
+            $request->file('proof'),
+        );
 
         return response()->json([
             'message' => 'Payment recorded successfully',
@@ -74,16 +80,74 @@ class PaymentController extends Controller
         ], 201);
     }
 
+    public function uploadProof(UploadPaymentProofRequest $request, Payment $payment)
+    {
+        $resolvedPayment = $this->findScopedPayment($request, $payment);
+
+        $updatedPayment = $this->paymentService->uploadManualProof(
+            $resolvedPayment,
+            $request->file('proof'),
+            $request->user(),
+        );
+
+        return response()->json([
+            'message' => 'Payment proof uploaded successfully',
+            'data' => $updatedPayment,
+        ]);
+    }
+
+    public function verify(ReviewPaymentRequest $request, Payment $payment)
+    {
+        $resolvedPayment = $this->findScopedPayment($request, $payment);
+        $updatedPayment = $this->paymentService->verifyManualPayment(
+            $resolvedPayment,
+            $request->user(),
+            $request->validated('notes'),
+        );
+
+        return response()->json([
+            'message' => 'Payment verified successfully',
+            'data' => $updatedPayment,
+        ]);
+    }
+
+    public function reject(ReviewPaymentRequest $request, Payment $payment)
+    {
+        $resolvedPayment = $this->findScopedPayment($request, $payment);
+        $updatedPayment = $this->paymentService->rejectManualPayment(
+            $resolvedPayment,
+            $request->user(),
+            $request->validated('notes'),
+        );
+
+        return response()->json([
+            'message' => 'Payment rejected successfully',
+            'data' => $updatedPayment,
+        ]);
+    }
+
     public function show(Request $request, Payment $payment)
     {
         $query = $this->scopeToBranchIfStaff(
-            $this->scopeToTenant(Payment::with(['member', 'subscription', 'recorder'])->whereKey($payment->id), $request),
+            $this->scopeToTenant(Payment::with(['member', 'subscription.membershipPlan', 'recorder', 'reviewer', 'proofs.uploader'])->whereKey($payment->id), $request),
             $request,
         );
 
         return response()->json([
             'data' => $query->firstOrFail(),
         ]);
+    }
+
+    private function findScopedPayment(Request $request, Payment $payment): Payment
+    {
+        return $this->scopeToBranchIfStaff(
+            $this->scopeToTenant(
+                Payment::with(['member', 'subscription.membershipPlan', 'recorder', 'reviewer', 'proofs.uploader'])
+                    ->whereKey($payment->id),
+                $request,
+            ),
+            $request,
+        )->firstOrFail();
     }
 
     private function ensureScopedEntities(Request $request, array $data): void
