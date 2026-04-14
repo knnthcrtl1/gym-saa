@@ -219,7 +219,8 @@ type ApiPageError = {
 };
 
 definePageMeta({
-  middleware: ["auth"],
+  middleware: ["auth", "can"],
+  permission: "plans.view",
 });
 
 const { list, remove } = usePlans();

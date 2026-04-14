@@ -259,7 +259,8 @@ type ApiPageError = {
 };
 
 definePageMeta({
-  middleware: ["auth"],
+  middleware: ["auth", "can"],
+  permission: "payments.view",
 });
 
 const route = useRoute();

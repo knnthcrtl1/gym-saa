@@ -245,7 +245,8 @@ type ApiPageError = {
 };
 
 definePageMeta({
-  middleware: ["auth"],
+  middleware: ["auth", "can"],
+  permission: "subscriptions.view",
 });
 
 const { list, remove } = useSubscriptions();

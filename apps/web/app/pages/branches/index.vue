@@ -55,7 +55,8 @@
 
 <script setup lang="ts">
 definePageMeta({
-  middleware: ["auth"],
+  middleware: ["auth", "can"],
+  permission: "branches.view",
 });
 
 const { data } = await useBranches();

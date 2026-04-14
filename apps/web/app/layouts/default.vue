@@ -25,7 +25,7 @@
           <!-- Nav items -->
           <v-list class="app-nav" density="compact" nav>
             <v-list-item
-              v-for="item in navigationItems"
+              v-for="item in visibleNavigationItems"
               :key="item.to"
               :active="isActive(item.to)"
               :title="item.label"
@@ -158,11 +158,13 @@
 </template>
 
 <script setup lang="ts">
+import { useAuthorization } from "../../composables/useAuthorization";
 import type { AuthUser } from "../../types/api";
 import { useTheme, useDisplay } from "vuetify";
 
 const route = useRoute();
 const user = useState<AuthUser | null>("auth.user", () => null);
+const { hasPermission } = useAuthorization();
 const theme = useTheme();
 const { mdAndUp } = useDisplay();
 
@@ -208,16 +210,65 @@ const currentPageTitle = computed(() => {
 });
 
 const navigationItems = [
-  { label: "Dashboard", to: "/dashboard", icon: "lucide:layout-dashboard" },
-  { label: "Members", to: "/members", icon: "lucide:users" },
-  { label: "Plans", to: "/plans", icon: "lucide:credit-card" },
-  { label: "Subscriptions", to: "/subscriptions", icon: "lucide:repeat" },
-  { label: "Payments", to: "/payments", icon: "lucide:wallet" },
-  { label: "Attendance", to: "/attendance", icon: "lucide:scan-line" },
-  { label: "Staff", to: "/staff", icon: "lucide:user-cog" },
-  { label: "Branches", to: "/branches", icon: "lucide:map-pin" },
-  { label: "Tenants", to: "/tenants", icon: "lucide:building-2" },
+  {
+    label: "Dashboard",
+    to: "/dashboard",
+    icon: "lucide:layout-dashboard",
+    permission: "dashboard.view",
+  },
+  {
+    label: "Members",
+    to: "/members",
+    icon: "lucide:users",
+    permission: "members.view",
+  },
+  {
+    label: "Plans",
+    to: "/plans",
+    icon: "lucide:credit-card",
+    permission: "plans.view",
+  },
+  {
+    label: "Subscriptions",
+    to: "/subscriptions",
+    icon: "lucide:repeat",
+    permission: "subscriptions.view",
+  },
+  {
+    label: "Payments",
+    to: "/payments",
+    icon: "lucide:wallet",
+    permission: "payments.view",
+  },
+  {
+    label: "Attendance",
+    to: "/attendance",
+    icon: "lucide:scan-line",
+    permission: "attendance.view",
+  },
+  {
+    label: "Staff",
+    to: "/staff",
+    icon: "lucide:user-cog",
+    permission: "staff.view",
+  },
+  {
+    label: "Branches",
+    to: "/branches",
+    icon: "lucide:map-pin",
+    permission: "branches.view",
+  },
+  {
+    label: "Tenants",
+    to: "/tenants",
+    icon: "lucide:building-2",
+    permission: "tenants.view",
+  },
 ];
+
+const visibleNavigationItems = computed(() =>
+  navigationItems.filter((item) => hasPermission(item.permission)),
+);
 
 const showAppShell = computed(() => !publicRoutes.has(route.path));
 

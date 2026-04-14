@@ -331,7 +331,8 @@ type ApiPageError = {
 };
 
 definePageMeta({
-  middleware: ["auth"],
+  middleware: ["auth", "can"],
+  permission: "members.view",
 });
 
 const { list, remove, bulkRemove } = useMembers();

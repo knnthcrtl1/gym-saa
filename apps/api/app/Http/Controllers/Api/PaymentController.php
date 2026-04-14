@@ -11,12 +11,15 @@ use App\Models\Member;
 use App\Models\Payment;
 use App\Models\Subscription;
 use App\Services\Payments\PaymentService;
+use App\Support\AuthorizesGymPermissions;
 use App\Support\BelongsToTenant;
+use App\Support\GymPermission;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 
 class PaymentController extends Controller
 {
+    use AuthorizesGymPermissions;
     use BelongsToTenant;
 
     public function __construct(private readonly PaymentService $paymentService)
@@ -25,6 +28,8 @@ class PaymentController extends Controller
 
     public function index(Request $request)
     {
+        $this->requirePermission($request, GymPermission::PAYMENTS_VIEW);
+
         $query = $this->scopeToBranchIfStaff(
             $this->scopeToTenant(Payment::with(['member', 'subscription.membershipPlan', 'recorder', 'reviewer', 'proofs.uploader']), $request),
             $request,
@@ -128,6 +133,8 @@ class PaymentController extends Controller
 
     public function show(Request $request, Payment $payment)
     {
+        $this->requirePermission($request, GymPermission::PAYMENTS_VIEW);
+
         $query = $this->scopeToBranchIfStaff(
             $this->scopeToTenant(Payment::with(['member', 'subscription.membershipPlan', 'recorder', 'reviewer', 'proofs.uploader'])->whereKey($payment->id), $request),
             $request,

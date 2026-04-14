@@ -2,13 +2,17 @@
 
 namespace App\Http\Requests;
 
+use App\Http\Requests\Concerns\AuthorizesGymPermission;
+use App\Support\GymPermission;
 use Illuminate\Foundation\Http\FormRequest;
 
 class StoreSubscriptionRequest extends FormRequest
 {
+    use AuthorizesGymPermission;
+
     public function authorize(): bool
     {
-        return in_array($this->user()?->role, ['super_admin', 'gym_admin', 'staff'], true);
+        return $this->userCan(GymPermission::SUBSCRIPTIONS_MANAGE);
     }
 
     public function rules(): array

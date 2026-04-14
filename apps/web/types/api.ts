@@ -42,6 +42,13 @@ export type Branch = {
   status: "active" | "inactive";
 };
 
+export type StaffUser = import("./auth").AuthUser & {
+  created_at?: string | null;
+  updated_at?: string | null;
+  branch?: Branch | null;
+  tenant?: Tenant | null;
+};
+
 export type Member = {
   id: number;
   tenant_id: number;
@@ -150,9 +157,36 @@ export type PaymentProof = {
 
 export type DashboardStats = {
   active_members: number;
+  expired_members: number;
   expired_subscriptions: number;
+  new_members_this_month: number;
   today_checkins: number;
+  payments_today: number;
+  payments_this_month: number;
+  income_today: number;
   monthly_revenue: number;
+  upcoming_renewals: number;
+};
+
+export type Checkin = {
+  id: number;
+  tenant_id: number;
+  branch_id: number;
+  member_id: number;
+  subscription_id: number;
+  checkin_time: string;
+  checkout_time?: string | null;
+  source: "manual" | "qr" | "kiosk";
+  status: string;
+  verified_by?: number | null;
+  created_at?: string | null;
+  updated_at?: string | null;
+  member?: Member;
+  subscription?: Subscription;
+  verifier?: {
+    id: number;
+    name: string;
+  } | null;
 };
 
 export type DashboardResponse = {

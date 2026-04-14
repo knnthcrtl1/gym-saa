@@ -7,16 +7,21 @@ use App\Http\Requests\StoreSubscriptionRequest;
 use App\Http\Requests\UpdateSubscriptionRequest;
 use App\Models\MembershipPlan;
 use App\Models\Subscription;
+use App\Support\AuthorizesGymPermissions;
 use App\Support\BelongsToTenant;
+use App\Support\GymPermission;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 
 class SubscriptionController extends Controller
 {
+    use AuthorizesGymPermissions;
     use BelongsToTenant;
 
     public function index(Request $request)
     {
+        $this->requirePermission($request, GymPermission::SUBSCRIPTIONS_VIEW);
+
         $query = $this->scopeToBranchIfStaff(
             $this->scopeToTenant(Subscription::with(['member', 'membershipPlan']), $request),
             $request,
@@ -57,6 +62,8 @@ class SubscriptionController extends Controller
 
     public function show(Request $request, Subscription $subscription)
     {
+        $this->requirePermission($request, GymPermission::SUBSCRIPTIONS_VIEW);
+
         $query = $this->scopeToBranchIfStaff(
             $this->scopeToTenant(Subscription::with(['member', 'membershipPlan'])->whereKey($subscription->id), $request),
             $request,

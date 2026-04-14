@@ -2,10 +2,12 @@
 
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\BranchController;
+use App\Http\Controllers\Api\CheckinController;
 use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\MemberController;
 use App\Http\Controllers\Api\MembershipPlanController;
 use App\Http\Controllers\Api\PaymentController;
+use App\Http\Controllers\Api\StaffController;
 use App\Http\Controllers\Api\SubscriptionController;
 use App\Http\Controllers\Api\TenantController;
 use App\Http\Controllers\Api\WebhookController;
@@ -32,6 +34,9 @@ Route::prefix('v1')->group(function () {
         Route::apiResource('members', MemberController::class);
         Route::apiResource('membership-plans', MembershipPlanController::class);
         Route::apiResource('subscriptions', SubscriptionController::class);
+        Route::apiResource('staff', StaffController::class);
+        Route::get('/checkins', [CheckinController::class, 'index']);
+        Route::post('/checkins', [CheckinController::class, 'store']);
         Route::get('/payments', [PaymentController::class, 'index']);
         Route::post('/payments/intent', [PaymentController::class, 'createIntent']);
         Route::post('/payments/manual', [PaymentController::class, 'storeManual']);

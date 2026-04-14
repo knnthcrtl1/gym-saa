@@ -5,14 +5,15 @@ namespace App\Http\Requests;
 use App\Http\Requests\Concerns\AuthorizesGymPermission;
 use App\Support\GymPermission;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
-class StorePaymentIntentRequest extends FormRequest
+class StoreCheckinRequest extends FormRequest
 {
     use AuthorizesGymPermission;
 
     public function authorize(): bool
     {
-        return $this->userCan(GymPermission::PAYMENTS_MANAGE);
+        return $this->userCan(GymPermission::ATTENDANCE_MANAGE);
     }
 
     public function rules(): array
@@ -22,9 +23,7 @@ class StorePaymentIntentRequest extends FormRequest
             'branch_id' => ['required', 'exists:branches,id'],
             'member_id' => ['required', 'exists:members,id'],
             'subscription_id' => ['nullable', 'exists:subscriptions,id'],
-            'amount' => ['required', 'numeric', 'min:0.01'],
-            'currency' => ['sometimes', 'string', 'size:3'],
-            'notes' => ['nullable', 'string'],
+            'source' => ['nullable', Rule::in(['manual', 'qr', 'kiosk'])],
         ];
     }
 }
