@@ -30,7 +30,12 @@
           class="members-filter"
           prepend-inner-icon="mdi-tune-variant"
         />
-        <AppButton tone="primary" :loading="loading" @click="openCreate">
+        <AppButton
+          v-if="canManageMembers"
+          tone="primary"
+          :loading="loading"
+          @click="openCreate"
+        >
           <Icon name="lucide:plus" size="18" class="mr-2" />
           Add member
         </AppButton>
@@ -79,9 +84,11 @@
 
       <template #actions>
         <div class="toolbar-cluster toolbar-cluster--end">
-          <span class="surface-pill"> {{ selectedIds.length }} selected </span>
+          <span v-if="canManageMembers" class="surface-pill">
+            {{ selectedIds.length }} selected
+          </span>
           <AppButton
-            v-if="selectedIds.length"
+            v-if="canManageMembers && selectedIds.length"
             tone="danger"
             appearance="outline"
             :loading="deleteLoading"
@@ -105,7 +112,7 @@
         <v-table>
           <thead>
             <tr>
-              <th class="table-checkbox-cell">
+              <th v-if="canManageMembers" class="table-checkbox-cell">
                 <v-checkbox-btn
                   :model-value="allVisibleSelected"
                   :indeterminate="someVisibleSelected"
@@ -173,16 +180,40 @@
                   />
                 </button>
               </th>
-              <th class="text-right" />
+              <th v-if="rowActions.length" class="text-right" />
             </tr>
           </thead>
           <tbody>
             <tr v-if="loading">
-              <td colspan="7" class="text-center py-6">Loading members...</td>
+              <td
+                :colspan="
+                  rowActions.length
+                    ? canManageMembers
+                      ? 7
+                      : 6
+                    : canManageMembers
+                      ? 6
+                      : 5
+                "
+                class="text-center py-6"
+              >
+                Loading members...
+              </td>
             </tr>
 
             <tr v-else-if="members.length === 0">
-              <td colspan="7" class="text-center py-10">
+              <td
+                :colspan="
+                  rowActions.length
+                    ? canManageMembers
+                      ? 7
+                      : 6
+                    : canManageMembers
+                      ? 6
+                      : 5
+                "
+                class="text-center py-10"
+              >
                 <div class="empty-state">
                   <div class="panel-label mb-2">No results</div>
                   No members matched the current search and filters.
@@ -191,7 +222,7 @@
             </tr>
 
             <tr v-for="member in members" :key="member.id">
-              <td class="table-checkbox-cell">
+              <td v-if="canManageMembers" class="table-checkbox-cell">
                 <v-checkbox-btn
                   :model-value="selectedIds.includes(member.id)"
                   @update:model-value="toggleSelected(member.id, $event)"
@@ -230,7 +261,7 @@
               <td class="table-cell-muted">
                 {{ formatDate(member.created_at) }}
               </td>
-              <td class="text-right">
+              <td v-if="rowActions.length" class="text-right">
                 <AppRowActions
                   :items="rowActions"
                   @select="handleRowAction($event, member)"
@@ -308,6 +339,7 @@
 </template>
 
 <script setup lang="ts">
+import { useAuthorization } from "../../../composables/useAuthorization";
 import PageHeader from "../../components/admin/PageHeader.vue";
 import TableShell from "../../components/admin/TableShell.vue";
 import MemberFormDialog from "../../components/members/MemberFormDialog.vue";
@@ -335,6 +367,7 @@ definePageMeta({
   permission: "members.view",
 });
 
+const { hasPermission } = useAuthorization();
 const { list, remove, bulkRemove } = useMembers();
 
 const loading = ref(false);
@@ -363,24 +396,40 @@ const pagination = reactive({
   to: 0 as number | null,
 });
 
-const rowActions: AppRowActionItem[] = [
-  {
-    key: "subscription",
-    label: "Create subscription",
-    icon: "lucide:shield-plus",
-  },
-  {
-    key: "edit",
-    label: "Edit member",
-    icon: "lucide:square-pen",
-  },
-  {
-    key: "delete",
-    label: "Delete member",
-    icon: "lucide:trash-2",
-    tone: "danger",
-  },
-];
+const canManageMembers = computed(() => hasPermission("members.manage"));
+const canManageSubscriptions = computed(() =>
+  hasPermission("subscriptions.manage"),
+);
+
+const rowActions = computed<AppRowActionItem[]>(() => {
+  const actions: AppRowActionItem[] = [];
+
+  if (canManageSubscriptions.value) {
+    actions.push({
+      key: "subscription",
+      label: "Create subscription",
+      icon: "lucide:shield-plus",
+    });
+  }
+
+  if (canManageMembers.value) {
+    actions.push(
+      {
+        key: "edit",
+        label: "Edit member",
+        icon: "lucide:square-pen",
+      },
+      {
+        key: "delete",
+        label: "Delete member",
+        icon: "lucide:trash-2",
+        tone: "danger",
+      },
+    );
+  }
+
+  return actions;
+});
 
 const statusOptions = [
   { label: "All statuses", value: "all" },

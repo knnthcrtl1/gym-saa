@@ -571,6 +571,13 @@ a {
   color: var(--gym-primary);
 }
 
+.table-checkbox-cell .v-selection-control__input > .v-icon,
+.table-checkbox-cell .v-selection-control__input .v-icon,
+.table-checkbox-cell .v-selection-control--dirty .v-icon {
+  color: var(--gym-primary) !important;
+  opacity: 1 !important;
+}
+
 .table-cell-muted {
   color: var(--gym-text-secondary);
 }

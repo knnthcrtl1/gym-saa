@@ -19,7 +19,7 @@
               <Icon name="lucide:shield-check" size="16" />
               {{
                 form.role === "gym_admin"
-                  ? "Gym admin"
+                  ? "Gym owner"
                   : roleLabel(form.staff_role)
               }}
             </span>
@@ -118,7 +118,7 @@
               :items="roleOptions"
               item-title="label"
               item-value="value"
-              label="System role"
+              label="Access level"
               variant="outlined"
               :error-messages="errors.role"
             />
@@ -132,6 +132,7 @@
               item-value="value"
               label="Staff role"
               variant="outlined"
+              :disabled="form.role === 'gym_admin'"
               :error-messages="errors.staff_role"
             />
           </v-col>
@@ -207,6 +208,7 @@ import AppStatusTag from "../ui/AppStatusTag.vue";
 import type { Branch, PaginatedResponse, StaffUser } from "../../../types/api";
 import { useStaff, type StaffPayload } from "../../../composables/useStaff";
 import {
+  formatRoleLabel,
   permissionOptions,
   resolveDefaultPermissions,
 } from "../../../composables/useAuthorization";
@@ -264,12 +266,12 @@ const confirmDeleteOpen = ref(false);
 const branchOptions = ref<BranchOption[]>([]);
 
 const roleOptions = [
-  { label: "Gym admin", value: "gym_admin" },
-  { label: "Staff", value: "staff" },
+  { label: "Gym owner", value: "gym_admin" },
+  { label: "Staff account", value: "staff" },
 ] as const;
 
 const staffRoleOptions = [
-  { label: "Owner", value: "owner" },
+  { label: "Gym owner", value: "owner" },
   { label: "Manager", value: "manager" },
   { label: "Front desk", value: "front_desk" },
   { label: "Trainer", value: "trainer" },
@@ -315,8 +317,7 @@ const resetForm = () => {
   clearErrors();
 };
 
-const roleLabel = (value?: string | null) =>
-  value ? value.replace(/_/g, " ") : "staff";
+const roleLabel = (value?: string | null) => formatRoleLabel("staff", value);
 
 const resetPermissionsToDefault = () => {
   form.permissions = resolveDefaultPermissions(form.role, form.staff_role);
@@ -476,6 +477,12 @@ watch(
 watch(
   () => [form.role, form.staff_role],
   () => {
+    if (form.role === "gym_admin") {
+      form.staff_role = "owner";
+    } else if (form.staff_role === "owner") {
+      form.staff_role = "front_desk";
+    }
+
     if (!isEdit.value) {
       resetPermissionsToDefault();
     }

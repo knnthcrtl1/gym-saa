@@ -21,7 +21,12 @@
           class="subscriptions-filter"
           prepend-inner-icon="mdi-tune-variant"
         />
-        <AppButton tone="primary" :loading="loading" @click="openCreate">
+        <AppButton
+          v-if="canManageSubscriptions"
+          tone="primary"
+          :loading="loading"
+          @click="openCreate"
+        >
           <Icon name="lucide:plus" size="18" class="mr-2" />
           Add subscription
         </AppButton>
@@ -70,9 +75,11 @@
 
       <template #actions>
         <div class="toolbar-cluster toolbar-cluster--end">
-          <span class="surface-pill"> {{ selectedIds.length }} selected </span>
+          <span v-if="canManageSubscriptions" class="surface-pill">
+            {{ selectedIds.length }} selected
+          </span>
           <AppButton
-            v-if="selectedIds.length"
+            v-if="canManageSubscriptions && selectedIds.length"
             tone="danger"
             appearance="outline"
             :loading="deleteLoading"
@@ -96,7 +103,7 @@
         <v-table>
           <thead>
             <tr>
-              <th class="table-checkbox-cell">
+              <th v-if="canManageSubscriptions" class="table-checkbox-cell">
                 <v-checkbox-btn
                   :model-value="allVisibleSelected"
                   :indeterminate="someVisibleSelected"
@@ -110,18 +117,24 @@
               <th>Amount</th>
               <th>Payment</th>
               <th>Status</th>
-              <th class="text-right" />
+              <th v-if="rowActions.length" class="text-right" />
             </tr>
           </thead>
           <tbody>
             <tr v-if="loading">
-              <td colspan="9" class="text-center py-6">
+              <td
+                :colspan="canManageSubscriptions ? 9 : 8"
+                class="text-center py-6"
+              >
                 Loading subscriptions...
               </td>
             </tr>
 
             <tr v-else-if="subscriptions.length === 0">
-              <td colspan="9" class="text-center py-10">
+              <td
+                :colspan="canManageSubscriptions ? 9 : 8"
+                class="text-center py-10"
+              >
                 <div class="empty-state">
                   <div class="panel-label mb-2">No results</div>
                   No subscriptions matched the current filter.
@@ -130,7 +143,7 @@
             </tr>
 
             <tr v-for="subscription in subscriptions" :key="subscription.id">
-              <td class="table-checkbox-cell">
+              <td v-if="canManageSubscriptions" class="table-checkbox-cell">
                 <v-checkbox-btn
                   :model-value="selectedIds.includes(subscription.id)"
                   @update:model-value="toggleSelected(subscription.id, $event)"
@@ -172,7 +185,7 @@
               <td>
                 <AppStatusTag :label="subscription.status" />
               </td>
-              <td class="text-right">
+              <td v-if="rowActions.length" class="text-right">
                 <AppRowActions
                   :items="rowActions"
                   @select="handleRowAction($event, subscription)"
@@ -249,6 +262,7 @@
 </template>
 
 <script setup lang="ts">
+import { useAuthorization } from "../../../composables/useAuthorization";
 import PageHeader from "../../components/admin/PageHeader.vue";
 import PaymentDialog from "../../components/payments/PaymentDialog.vue";
 import TableShell from "../../components/admin/TableShell.vue";
@@ -273,6 +287,7 @@ definePageMeta({
   permission: "subscriptions.view",
 });
 
+const { hasPermission } = useAuthorization();
 const { list, remove } = useSubscriptions();
 
 const loading = ref(false);
@@ -296,24 +311,40 @@ const pagination = reactive({
   to: 0 as number | null,
 });
 
-const rowActions: AppRowActionItem[] = [
-  {
-    key: "pay",
-    label: "Record payment",
-    icon: "lucide:wallet",
-  },
-  {
-    key: "edit",
-    label: "Edit subscription",
-    icon: "lucide:square-pen",
-  },
-  {
-    key: "delete",
-    label: "Delete subscription",
-    icon: "lucide:trash-2",
-    tone: "danger",
-  },
-];
+const canManageSubscriptions = computed(() =>
+  hasPermission("subscriptions.manage"),
+);
+const canManagePayments = computed(() => hasPermission("payments.manage"));
+
+const rowActions = computed<AppRowActionItem[]>(() => {
+  const actions: AppRowActionItem[] = [];
+
+  if (canManagePayments.value) {
+    actions.push({
+      key: "pay",
+      label: "Record payment",
+      icon: "lucide:wallet",
+    });
+  }
+
+  if (canManageSubscriptions.value) {
+    actions.push(
+      {
+        key: "edit",
+        label: "Edit subscription",
+        icon: "lucide:square-pen",
+      },
+      {
+        key: "delete",
+        label: "Delete subscription",
+        icon: "lucide:trash-2",
+        tone: "danger",
+      },
+    );
+  }
+
+  return actions;
+});
 
 const statusOptions = [
   { label: "All statuses", value: "all" },

@@ -29,7 +29,7 @@
           item-value="value"
           class="members-filter"
         />
-        <AppButton tone="primary" @click="openCreate">
+        <AppButton v-if="canManageStaff" tone="primary" @click="openCreate">
           <Icon name="lucide:plus" size="18" class="mr-2" />
           Add staff account
         </AppButton>
@@ -57,7 +57,7 @@
         <v-col cols="12" md="4">
           <v-card class="content-panel">
             <v-card-text>
-              <div class="panel-label">Gym admins</div>
+              <div class="panel-label">Owners</div>
               <div class="stat-card__value">{{ adminCount }}</div>
             </v-card-text>
           </v-card>
@@ -78,9 +78,11 @@
 
       <template #actions>
         <div class="toolbar-cluster toolbar-cluster--end">
-          <span class="surface-pill"> {{ selectedIds.length }} selected </span>
+          <span v-if="canManageStaff" class="surface-pill">
+            {{ selectedIds.length }} selected
+          </span>
           <AppButton
-            v-if="selectedIds.length"
+            v-if="canManageStaff && selectedIds.length"
             tone="danger"
             appearance="outline"
             :loading="deleteLoading"
@@ -104,7 +106,7 @@
         <v-table>
           <thead>
             <tr>
-              <th class="table-checkbox-cell">
+              <th v-if="canManageStaff" class="table-checkbox-cell">
                 <v-checkbox-btn
                   :model-value="allVisibleSelected"
                   :indeterminate="someVisibleSelected"
@@ -116,16 +118,18 @@
               <th>Branch</th>
               <th>Status</th>
               <th>Permissions</th>
-              <th class="text-right">Action</th>
+              <th v-if="canManageStaff" class="text-right">Action</th>
             </tr>
           </thead>
           <tbody>
             <tr v-if="loading">
-              <td colspan="7" class="text-center py-6">Loading staff...</td>
+              <td :colspan="canManageStaff ? 7 : 6" class="text-center py-6">
+                Loading staff...
+              </td>
             </tr>
 
             <tr v-else-if="staff.length === 0">
-              <td colspan="7" class="text-center py-10">
+              <td :colspan="canManageStaff ? 7 : 6" class="text-center py-10">
                 <div class="empty-state">
                   <div class="panel-label mb-2">No staff found</div>
                   Create the first staff account to delegate gym operations.
@@ -134,7 +138,7 @@
             </tr>
 
             <tr v-for="member in staff" :key="member.id">
-              <td class="table-checkbox-cell">
+              <td v-if="canManageStaff" class="table-checkbox-cell">
                 <v-checkbox-btn
                   :model-value="selectedIds.includes(member.id)"
                   @update:model-value="toggleSelected(member.id, $event)"
@@ -156,11 +160,7 @@
                 </div>
               </td>
               <td class="table-cell-muted">
-                {{
-                  member.role === "gym_admin"
-                    ? "Gym admin"
-                    : formatRole(member.staff_role)
-                }}
+                {{ formatRole(member) }}
               </td>
               <td class="table-cell-muted">
                 {{
@@ -176,7 +176,7 @@
               <td class="table-cell-muted">
                 {{ member.permissions.length }} modules
               </td>
-              <td class="text-right">
+              <td v-if="canManageStaff" class="text-right">
                 <div class="toolbar-cluster toolbar-cluster--end">
                   <AppButton
                     tone="primary"
@@ -259,6 +259,10 @@
 </template>
 
 <script setup lang="ts">
+import {
+  formatRoleLabel,
+  useAuthorization,
+} from "../../../composables/useAuthorization";
 import { useStaff } from "../../../composables/useStaff";
 import type { StaffUser } from "../../../types/api";
 import type { StaffListParams } from "../../../composables/useStaff";
@@ -280,6 +284,7 @@ definePageMeta({
   permission: "staff.view",
 });
 
+const { hasPermission } = useAuthorization();
 const { list, remove } = useStaff();
 
 const loading = ref(false);
@@ -350,8 +355,8 @@ const initials = (member: StaffUser) =>
     .toUpperCase()
     .slice(0, 2);
 
-const formatRole = (value?: string | null) =>
-  value ? value.replace(/_/g, " ") : "staff";
+const formatRole = (member: StaffUser) =>
+  formatRoleLabel(member.role, member.staff_role);
 
 const activeCount = computed(
   () => staff.value.filter((item) => item.status === "active").length,
@@ -362,6 +367,8 @@ const inactiveCount = computed(
 const adminCount = computed(
   () => staff.value.filter((item) => item.role === "gym_admin").length,
 );
+
+const canManageStaff = computed(() => hasPermission("staff.manage"));
 
 const allVisibleSelected = computed(
   () =>

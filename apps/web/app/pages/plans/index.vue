@@ -21,7 +21,12 @@
           class="plans-filter"
           prepend-inner-icon="mdi-tune-variant"
         />
-        <AppButton tone="primary" :loading="loading" @click="openCreate">
+        <AppButton
+          v-if="canManagePlans"
+          tone="primary"
+          :loading="loading"
+          @click="openCreate"
+        >
           <Icon name="lucide:plus" size="18" class="mr-2" />
           Add plan
         </AppButton>
@@ -70,9 +75,11 @@
 
       <template #actions>
         <div class="toolbar-cluster toolbar-cluster--end">
-          <span class="surface-pill"> {{ selectedIds.length }} selected </span>
+          <span v-if="canManagePlans" class="surface-pill">
+            {{ selectedIds.length }} selected
+          </span>
           <AppButton
-            v-if="selectedIds.length"
+            v-if="canManagePlans && selectedIds.length"
             tone="danger"
             appearance="outline"
             :loading="deleteLoading"
@@ -96,7 +103,7 @@
         <v-table>
           <thead>
             <tr>
-              <th class="table-checkbox-cell">
+              <th v-if="canManagePlans" class="table-checkbox-cell">
                 <v-checkbox-btn
                   :model-value="allVisibleSelected"
                   :indeterminate="someVisibleSelected"
@@ -108,16 +115,18 @@
               <th>Price</th>
               <th>Sessions</th>
               <th>Status</th>
-              <th class="text-right" />
+              <th v-if="rowActions.length" class="text-right" />
             </tr>
           </thead>
           <tbody>
             <tr v-if="loading">
-              <td colspan="7" class="text-center py-6">Loading plans...</td>
+              <td :colspan="canManagePlans ? 7 : 6" class="text-center py-6">
+                Loading plans...
+              </td>
             </tr>
 
             <tr v-else-if="plans.length === 0">
-              <td colspan="7" class="text-center py-10">
+              <td :colspan="canManagePlans ? 7 : 6" class="text-center py-10">
                 <div class="empty-state">
                   <div class="panel-label mb-2">No results</div>
                   No membership plans matched the current filter.
@@ -126,7 +135,7 @@
             </tr>
 
             <tr v-for="plan in plans" :key="plan.id">
-              <td class="table-checkbox-cell">
+              <td v-if="canManagePlans" class="table-checkbox-cell">
                 <v-checkbox-btn
                   :model-value="selectedIds.includes(plan.id)"
                   @update:model-value="toggleSelected(plan.id, $event)"
@@ -153,7 +162,7 @@
               <td>
                 <AppStatusTag :label="plan.status" />
               </td>
-              <td class="text-right">
+              <td v-if="rowActions.length" class="text-right">
                 <AppRowActions
                   :items="rowActions"
                   @select="handleRowAction($event, plan)"
@@ -224,6 +233,7 @@
 </template>
 
 <script setup lang="ts">
+import { useAuthorization } from "../../../composables/useAuthorization";
 import PageHeader from "../../components/admin/PageHeader.vue";
 import TableShell from "../../components/admin/TableShell.vue";
 import PlanFormDialog from "../../components/plans/PlanFormDialog.vue";
@@ -247,6 +257,7 @@ definePageMeta({
   permission: "plans.view",
 });
 
+const { hasPermission } = useAuthorization();
 const { list, remove } = usePlans();
 
 const loading = ref(false);
@@ -268,19 +279,25 @@ const pagination = reactive({
   to: 0 as number | null,
 });
 
-const rowActions: AppRowActionItem[] = [
-  {
-    key: "edit",
-    label: "Edit plan",
-    icon: "lucide:square-pen",
-  },
-  {
-    key: "delete",
-    label: "Delete plan",
-    icon: "lucide:trash-2",
-    tone: "danger",
-  },
-];
+const canManagePlans = computed(() => hasPermission("plans.manage"));
+
+const rowActions = computed<AppRowActionItem[]>(() =>
+  canManagePlans.value
+    ? [
+        {
+          key: "edit",
+          label: "Edit plan",
+          icon: "lucide:square-pen",
+        },
+        {
+          key: "delete",
+          label: "Delete plan",
+          icon: "lucide:trash-2",
+          tone: "danger",
+        },
+      ]
+    : [],
+);
 
 const statusOptions = [
   { label: "All statuses", value: "all" },

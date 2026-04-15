@@ -10,7 +10,12 @@
           <Icon name="lucide:receipt-text" size="16" />
           {{ pagination.total }} total
         </span>
-        <AppButton tone="primary" :loading="loading" @click="dialogOpen = true">
+        <AppButton
+          v-if="canManagePayments"
+          tone="primary"
+          :loading="loading"
+          @click="dialogOpen = true"
+        >
           <Icon name="lucide:plus" size="18" class="mr-2" />
           Record payment
         </AppButton>
@@ -160,7 +165,11 @@
                     View proof
                   </AppButton>
                   <AppButton
-                    v-if="payment.status === 'pending' && payment.checkout_url"
+                    v-if="
+                      canManagePayments &&
+                      payment.status === 'pending' &&
+                      payment.checkout_url
+                    "
                     tone="primary"
                     appearance="outline"
                     @click="openCheckout(payment.checkout_url)"
@@ -168,7 +177,10 @@
                     Continue checkout
                   </AppButton>
                   <AppButton
-                    v-if="payment.verification_status === 'pending'"
+                    v-if="
+                      canReviewPayments &&
+                      payment.verification_status === 'pending'
+                    "
                     tone="primary"
                     appearance="outline"
                     :loading="
@@ -179,7 +191,10 @@
                     Verify
                   </AppButton>
                   <AppButton
-                    v-if="payment.verification_status === 'pending'"
+                    v-if="
+                      canReviewPayments &&
+                      payment.verification_status === 'pending'
+                    "
                     tone="neutral"
                     appearance="outline"
                     :loading="
@@ -245,6 +260,7 @@
 
 <script setup lang="ts">
 import type { Payment } from "../../../types/api";
+import { useAuthorization } from "../../../composables/useAuthorization";
 import { usePayments } from "../../../composables/usePayments";
 import PageHeader from "../../components/admin/PageHeader.vue";
 import TableShell from "../../components/admin/TableShell.vue";
@@ -263,6 +279,7 @@ definePageMeta({
   permission: "payments.view",
 });
 
+const { hasPermission } = useAuthorization();
 const route = useRoute();
 const { list, verify, reject } = usePayments();
 
@@ -302,6 +319,9 @@ const pagination = reactive({
   from: 0 as number | null,
   to: 0 as number | null,
 });
+
+const canManagePayments = computed(() => hasPermission("payments.manage"));
+const canReviewPayments = computed(() => hasPermission("payments.review"));
 
 const loadPayments = async (page = pagination.current_page) => {
   loading.value = true;
@@ -399,8 +419,12 @@ const latestProofUrl = (payment: Payment) => payment.proofs?.[0]?.url ?? null;
 
 const hasRowActions = (payment: Payment) =>
   Boolean(latestProofUrl(payment)) ||
-  Boolean(payment.status === "pending" && payment.checkout_url) ||
-  payment.verification_status === "pending";
+  Boolean(
+    canManagePayments.value &&
+    payment.status === "pending" &&
+    payment.checkout_url,
+  ) ||
+  Boolean(canReviewPayments.value && payment.verification_status === "pending");
 
 const openProof = (proofUrl: string) => {
   if (import.meta.client) {

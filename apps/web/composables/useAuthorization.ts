@@ -123,16 +123,13 @@ const permissionDefaults: Record<string, string[]> = {
     "members.view",
     "members.manage",
     "plans.view",
-    "plans.manage",
     "subscriptions.view",
     "subscriptions.manage",
     "payments.view",
     "payments.manage",
-    "payments.review",
     "attendance.view",
     "attendance.manage",
     "staff.view",
-    "branches.view",
   ],
   front_desk: [
     "dashboard.view",
@@ -146,19 +143,42 @@ const permissionDefaults: Record<string, string[]> = {
     "attendance.view",
     "attendance.manage",
   ],
-  trainer: [
-    "dashboard.view",
-    "members.view",
-    "subscriptions.view",
-    "attendance.view",
-    "attendance.manage",
-  ],
+  trainer: ["members.view", "subscriptions.view", "attendance.view"],
   staff: [
     "dashboard.view",
     "members.view",
     "subscriptions.view",
     "attendance.view",
   ],
+};
+
+export const rolePresetLabels: Record<string, string> = {
+  super_admin: "Super admin",
+  owner: "Gym owner",
+  gym_admin: "Gym owner",
+  manager: "Manager",
+  front_desk: "Front desk",
+  trainer: "Trainer",
+  staff: "Staff",
+};
+
+export const formatRoleLabel = (
+  role?: string | null,
+  staffRole?: string | null,
+) => {
+  if (role === "super_admin") {
+    return rolePresetLabels.super_admin;
+  }
+
+  if (role === "gym_admin") {
+    return rolePresetLabels.gym_admin;
+  }
+
+  if (staffRole && rolePresetLabels[staffRole]) {
+    return rolePresetLabels[staffRole];
+  }
+
+  return rolePresetLabels.staff;
 };
 
 const normalizePermissions = (user: AuthUser | null) => user?.permissions ?? [];
