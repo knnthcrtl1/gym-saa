@@ -539,6 +539,36 @@ a {
 
 .table-checkbox-cell {
   width: 44px;
+  text-align: center;
+  vertical-align: middle;
+}
+
+.table-checkbox-cell .v-selection-control {
+  justify-content: center;
+  min-height: 40px;
+}
+
+.table-checkbox-cell .v-selection-control__wrapper {
+  width: 30px;
+  height: 30px;
+  border-radius: 10px;
+  background: var(--gym-surface-soft);
+  border: 1px solid var(--gym-border);
+  transition:
+    background 0.15s,
+    border-color 0.15s,
+    box-shadow 0.15s;
+}
+
+.table-checkbox-cell .v-selection-control:hover .v-selection-control__wrapper,
+.table-checkbox-cell .v-selection-control--dirty .v-selection-control__wrapper {
+  background: var(--gym-primary-soft);
+  border-color: color-mix(in srgb, var(--gym-primary) 42%, white);
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.08);
+}
+
+.table-checkbox-cell .v-icon {
+  color: var(--gym-primary);
 }
 
 .table-cell-muted {

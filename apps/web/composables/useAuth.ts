@@ -12,6 +12,9 @@ export const useAuth = () => {
   const config = useRuntimeConfig();
   const user = useState<AuthUser | null>("auth.user", () => null);
   const initialized = useState<boolean>("auth.initialized", () => false);
+  const forwardedHeaders = import.meta.server
+    ? useRequestHeaders(["cookie", "x-xsrf-token"])
+    : undefined;
 
   const api = $fetch.create({
     baseURL: config.public.apiBase,
@@ -19,6 +22,7 @@ export const useAuth = () => {
     headers: {
       Accept: "application/json",
       "X-Requested-With": "XMLHttpRequest",
+      ...forwardedHeaders,
     },
     onRequest({ options }) {
       const token = readCookie("XSRF-TOKEN");

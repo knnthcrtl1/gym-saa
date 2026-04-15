@@ -78,6 +78,17 @@
 
       <template #actions>
         <div class="toolbar-cluster toolbar-cluster--end">
+          <span class="surface-pill"> {{ selectedIds.length }} selected </span>
+          <AppButton
+            v-if="selectedIds.length"
+            tone="danger"
+            appearance="outline"
+            :loading="deleteLoading"
+            @click="promptBulkDelete"
+          >
+            <Icon name="lucide:trash-2" size="16" class="mr-2" />
+            Delete selected
+          </AppButton>
           <AppButton
             tone="neutral"
             appearance="outline"
@@ -93,6 +104,13 @@
         <v-table>
           <thead>
             <tr>
+              <th class="table-checkbox-cell">
+                <v-checkbox-btn
+                  :model-value="allVisibleSelected"
+                  :indeterminate="someVisibleSelected"
+                  @update:model-value="toggleSelectAll"
+                />
+              </th>
               <th>Staff</th>
               <th>Role</th>
               <th>Branch</th>
@@ -103,11 +121,11 @@
           </thead>
           <tbody>
             <tr v-if="loading">
-              <td colspan="6" class="text-center py-6">Loading staff...</td>
+              <td colspan="7" class="text-center py-6">Loading staff...</td>
             </tr>
 
             <tr v-else-if="staff.length === 0">
-              <td colspan="6" class="text-center py-10">
+              <td colspan="7" class="text-center py-10">
                 <div class="empty-state">
                   <div class="panel-label mb-2">No staff found</div>
                   Create the first staff account to delegate gym operations.
@@ -116,6 +134,12 @@
             </tr>
 
             <tr v-for="member in staff" :key="member.id">
+              <td class="table-checkbox-cell">
+                <v-checkbox-btn
+                  :model-value="selectedIds.includes(member.id)"
+                  @update:model-value="toggleSelected(member.id, $event)"
+                />
+              </td>
               <td>
                 <div class="table-primary-cell">
                   <div class="surface-avatar surface-avatar--sm">
@@ -164,7 +188,7 @@
                   <AppButton
                     tone="danger"
                     appearance="outline"
-                    @click="promptDelete(member)"
+                    @click="promptDelete([member])"
                   >
                     Delete
                   </AppButton>
@@ -264,11 +288,12 @@ const staff = ref<StaffUser[]>([]);
 const selectedStaff = ref<StaffUser | null>(null);
 const dialogOpen = ref(false);
 const errorMessage = ref("");
+const selectedIds = ref<number[]>([]);
 const searchInput = ref("");
 const search = ref("");
 const statusFilter = ref<StaffListParams["status"] | "all">("all");
 const confirmDeleteOpen = ref(false);
-const confirmDeleteId = ref<number | null>(null);
+const confirmDeleteIds = ref<number[]>([]);
 const confirmDeleteMessage = ref("This action cannot be undone.");
 const pagination = reactive({
   total: 0,
@@ -304,6 +329,9 @@ const loadStaff = async (page = pagination.current_page) => {
     pagination.last_page = response.last_page;
     pagination.from = response.from;
     pagination.to = response.to;
+    selectedIds.value = selectedIds.value.filter((id) =>
+      response.data.some((member) => member.id === id),
+    );
   } catch (error) {
     const typedError = error as ApiPageError;
 
@@ -335,6 +363,16 @@ const adminCount = computed(
   () => staff.value.filter((item) => item.role === "gym_admin").length,
 );
 
+const allVisibleSelected = computed(
+  () =>
+    staff.value.length > 0 &&
+    staff.value.every((member) => selectedIds.value.includes(member.id)),
+);
+
+const someVisibleSelected = computed(
+  () => selectedIds.value.length > 0 && !allVisibleSelected.value,
+);
+
 const openCreate = () => {
   selectedStaff.value = null;
   dialogOpen.value = true;
@@ -350,35 +388,66 @@ const handleSaved = async () => {
 };
 
 const handleDeleted = async () => {
-  await loadStaff(Math.min(pagination.current_page, pagination.last_page || 1));
+  await loadStaff(resolveReloadPage(1));
 };
 
-const promptDelete = (member: StaffUser) => {
-  confirmDeleteId.value = member.id;
-  confirmDeleteMessage.value = `Delete ${member.name}? This action cannot be undone.`;
+const promptDelete = (membersToDelete: StaffUser[]) => {
+  confirmDeleteIds.value = membersToDelete.map((member) => member.id);
+  confirmDeleteMessage.value =
+    membersToDelete.length === 1
+      ? `Delete ${membersToDelete[0]?.name}? This action cannot be undone.`
+      : `Delete ${membersToDelete.length} selected staff accounts? This action cannot be undone.`;
   confirmDeleteOpen.value = true;
 };
 
+const promptBulkDelete = () => {
+  const membersToDelete = staff.value.filter((member) =>
+    selectedIds.value.includes(member.id),
+  );
+
+  if (!membersToDelete.length) {
+    return;
+  }
+
+  promptDelete(membersToDelete);
+};
+
 const confirmDelete = async () => {
-  if (!confirmDeleteId.value) {
+  if (!confirmDeleteIds.value.length) {
+    confirmDeleteOpen.value = false;
     return;
   }
 
   deleteLoading.value = true;
+  errorMessage.value = "";
 
   try {
-    await remove(confirmDeleteId.value);
-    confirmDeleteOpen.value = false;
-    await loadStaff(
-      Math.min(pagination.current_page, pagination.last_page || 1),
+    await Promise.all(confirmDeleteIds.value.map((id) => remove(id)));
+    selectedIds.value = selectedIds.value.filter(
+      (id) => !confirmDeleteIds.value.includes(id),
     );
+    confirmDeleteOpen.value = false;
+    await loadStaff(resolveReloadPage(confirmDeleteIds.value.length));
   } catch (error) {
     const typedError = error as ApiPageError;
     errorMessage.value =
       typedError.data?.message ?? "Unable to delete staff account.";
   } finally {
     deleteLoading.value = false;
+    confirmDeleteIds.value = [];
   }
+};
+
+const resolveReloadPage = (removedCount: number) => {
+  const visibleCount = staff.value.length;
+  const nextPage =
+    visibleCount > 0 &&
+    removedCount >= visibleCount &&
+    pagination.current_page > 1
+      ? pagination.current_page - 1
+      : pagination.current_page;
+
+  return Math.max(nextPage, 1);
 };
 
 const changePage = async (page: number) => {
@@ -391,6 +460,27 @@ const changePage = async (page: number) => {
 
 const reloadCurrentPage = async () => {
   await loadStaff();
+};
+
+const toggleSelected = (staffId: number, checked: unknown) => {
+  if (checked) {
+    if (!selectedIds.value.includes(staffId)) {
+      selectedIds.value = [...selectedIds.value, staffId];
+    }
+
+    return;
+  }
+
+  selectedIds.value = selectedIds.value.filter((id) => id !== staffId);
+};
+
+const toggleSelectAll = (checked: unknown) => {
+  if (checked) {
+    selectedIds.value = staff.value.map((member) => member.id);
+    return;
+  }
+
+  selectedIds.value = [];
 };
 
 watch(searchInput, (value) => {

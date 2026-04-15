@@ -70,6 +70,17 @@
 
       <template #actions>
         <div class="toolbar-cluster toolbar-cluster--end">
+          <span class="surface-pill"> {{ selectedIds.length }} selected </span>
+          <AppButton
+            v-if="selectedIds.length"
+            tone="danger"
+            appearance="outline"
+            :loading="deleteLoading"
+            @click="promptBulkDelete"
+          >
+            <Icon name="lucide:trash-2" size="16" class="mr-2" />
+            Delete selected
+          </AppButton>
           <AppButton
             tone="neutral"
             appearance="outline"
@@ -85,6 +96,13 @@
         <v-table>
           <thead>
             <tr>
+              <th class="table-checkbox-cell">
+                <v-checkbox-btn
+                  :model-value="allVisibleSelected"
+                  :indeterminate="someVisibleSelected"
+                  @update:model-value="toggleSelectAll"
+                />
+              </th>
               <th>Name</th>
               <th>Duration</th>
               <th>Price</th>
@@ -95,11 +113,11 @@
           </thead>
           <tbody>
             <tr v-if="loading">
-              <td colspan="6" class="text-center py-6">Loading plans...</td>
+              <td colspan="7" class="text-center py-6">Loading plans...</td>
             </tr>
 
             <tr v-else-if="plans.length === 0">
-              <td colspan="6" class="text-center py-10">
+              <td colspan="7" class="text-center py-10">
                 <div class="empty-state">
                   <div class="panel-label mb-2">No results</div>
                   No membership plans matched the current filter.
@@ -108,6 +126,12 @@
             </tr>
 
             <tr v-for="plan in plans" :key="plan.id">
+              <td class="table-checkbox-cell">
+                <v-checkbox-btn
+                  :model-value="selectedIds.includes(plan.id)"
+                  @update:model-value="toggleSelected(plan.id, $event)"
+                />
+              </td>
               <td>
                 <div class="table-primary-cell">
                   <div class="surface-avatar surface-avatar--sm">
@@ -229,11 +253,12 @@ const loading = ref(false);
 const deleteLoading = ref(false);
 const plans = ref<MembershipPlan[]>([]);
 const selectedPlan = ref<MembershipPlan | null>(null);
+const selectedIds = ref<number[]>([]);
 const statusFilter = ref<PlanPayload["status"] | "all">("all");
 const dialogOpen = ref(false);
 const confirmDeleteOpen = ref(false);
 const errorMessage = ref("");
-const confirmDeleteId = ref<number | null>(null);
+const confirmDeleteIds = ref<number[]>([]);
 const confirmDeleteMessage = ref("This action cannot be undone.");
 const pagination = reactive({
   total: 0,
@@ -280,6 +305,9 @@ const loadPlans = async (page = pagination.current_page) => {
     pagination.last_page = response.last_page;
     pagination.from = response.from;
     pagination.to = response.to;
+    selectedIds.value = selectedIds.value.filter((id) =>
+      response.data.some((plan) => plan.id === id),
+    );
   } catch (error) {
     const typedError = error as ApiPageError;
 
@@ -307,14 +335,29 @@ const handleDeleted = async () => {
   await loadPlans(resolveReloadPage(1));
 };
 
-const promptDelete = (plan: MembershipPlan) => {
-  confirmDeleteId.value = plan.id;
-  confirmDeleteMessage.value = `Delete ${plan.name}? This action cannot be undone.`;
+const promptDelete = (plansToDelete: MembershipPlan[]) => {
+  confirmDeleteIds.value = plansToDelete.map((plan) => plan.id);
+  confirmDeleteMessage.value =
+    plansToDelete.length === 1
+      ? `Delete ${plansToDelete[0]?.name}? This action cannot be undone.`
+      : `Delete ${plansToDelete.length} selected plans? This action cannot be undone.`;
   confirmDeleteOpen.value = true;
 };
 
+const promptBulkDelete = () => {
+  const plansToDelete = plans.value.filter((plan) =>
+    selectedIds.value.includes(plan.id),
+  );
+
+  if (!plansToDelete.length) {
+    return;
+  }
+
+  promptDelete(plansToDelete);
+};
+
 const confirmDelete = async () => {
-  if (confirmDeleteId.value === null) {
+  if (!confirmDeleteIds.value.length) {
     confirmDeleteOpen.value = false;
     return;
   }
@@ -323,16 +366,19 @@ const confirmDelete = async () => {
   errorMessage.value = "";
 
   try {
-    await remove(confirmDeleteId.value);
+    await Promise.all(confirmDeleteIds.value.map((id) => remove(id)));
+    selectedIds.value = selectedIds.value.filter(
+      (id) => !confirmDeleteIds.value.includes(id),
+    );
     confirmDeleteOpen.value = false;
-    await loadPlans(resolveReloadPage(1));
+    await loadPlans(resolveReloadPage(confirmDeleteIds.value.length));
   } catch (error) {
     const typedError = error as ApiPageError;
 
     errorMessage.value = typedError.data?.message ?? "Unable to delete plan.";
   } finally {
     deleteLoading.value = false;
-    confirmDeleteId.value = null;
+    confirmDeleteIds.value = [];
   }
 };
 
@@ -355,8 +401,29 @@ const handleRowAction = (action: string, plan: MembershipPlan) => {
   }
 
   if (action === "delete") {
-    promptDelete(plan);
+    promptDelete([plan]);
   }
+};
+
+const toggleSelected = (planId: number, checked: unknown) => {
+  if (checked) {
+    if (!selectedIds.value.includes(planId)) {
+      selectedIds.value = [...selectedIds.value, planId];
+    }
+
+    return;
+  }
+
+  selectedIds.value = selectedIds.value.filter((id) => id !== planId);
+};
+
+const toggleSelectAll = (checked: unknown) => {
+  if (checked) {
+    selectedIds.value = plans.value.map((plan) => plan.id);
+    return;
+  }
+
+  selectedIds.value = [];
 };
 
 const changePage = async (page: number) => {
@@ -402,6 +469,16 @@ const sessionPlanCount = computed(
 
 const branchScopedCount = computed(
   () => plans.value.filter((plan) => plan.branch_id !== null).length,
+);
+
+const allVisibleSelected = computed(
+  () =>
+    plans.value.length > 0 &&
+    plans.value.every((plan) => selectedIds.value.includes(plan.id)),
+);
+
+const someVisibleSelected = computed(
+  () => selectedIds.value.length > 0 && !allVisibleSelected.value,
 );
 
 watch(statusFilter, () => {
