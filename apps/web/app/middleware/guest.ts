@@ -1,11 +1,23 @@
-export default defineNuxtRouteMiddleware(async () => {
+function isSafeRedirectTarget(value: unknown): value is string {
+  return (
+    typeof value === "string" &&
+    value.startsWith("/") &&
+    !value.startsWith("//")
+  );
+}
+
+export default defineNuxtRouteMiddleware(async (to) => {
   const { user, initialized, fetchUser } = useAuth();
 
-  if (!initialized.value) {
+  if (!initialized.value || (import.meta.client && !user.value)) {
     await fetchUser();
   }
 
   if (user.value) {
-    return navigateTo("/");
+    const redirectTarget = isSafeRedirectTarget(to.query.redirect)
+      ? to.query.redirect
+      : "/dashboard";
+
+    return navigateTo(redirectTarget);
   }
 });

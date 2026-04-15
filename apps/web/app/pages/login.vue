@@ -137,6 +137,22 @@ definePageMeta({
   layout: false,
 });
 
+const route = useRoute();
+
+function isSafeRedirectTarget(value: unknown): value is string {
+  return (
+    typeof value === "string" &&
+    value.startsWith("/") &&
+    !value.startsWith("//")
+  );
+}
+
+function getRedirectTarget() {
+  return isSafeRedirectTarget(route.query.redirect)
+    ? route.query.redirect
+    : "/dashboard";
+}
+
 const form = reactive({
   email: "admin@demofitness.local",
   password: "password",
@@ -153,7 +169,7 @@ const submit = async () => {
   try {
     const { login } = useAuth();
     await login({ ...form });
-    await navigateTo("/dashboard");
+    await navigateTo(getRedirectTarget());
   } catch (error) {
     const typedError = error as {
       data?: { message?: string; errors?: Record<string, string[]> };
