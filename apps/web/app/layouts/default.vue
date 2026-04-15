@@ -5,6 +5,8 @@
       <v-navigation-drawer
         v-if="showAppShell"
         v-model="drawer"
+        :rail="isDesktop && drawerRail"
+        :rail-width="88"
         :permanent="isDesktop"
         :temporary="!isDesktop"
         class="app-drawer"
@@ -61,29 +63,21 @@
 
       <!-- Top bar -->
       <v-app-bar v-if="showAppShell" class="app-bar" flat>
-        <!-- Mobile menu toggle -->
-        <v-btn
-          v-if="!isDesktop"
-          icon
-          variant="text"
-          class="mr-2"
-          @click="drawer = !drawer"
-        >
-          <Icon name="lucide:menu" size="22" />
-        </v-btn>
+        <div class="app-bar__headline">
+          <v-btn
+            icon
+            variant="text"
+            class="app-bar__menu-btn"
+            @click="toggleNavigation"
+          >
+            <Icon
+              :name="isDesktop ? 'lucide:panel-left' : 'lucide:menu'"
+              size="22"
+            />
+          </v-btn>
 
-        <!-- Page title -->
-        <div class="app-bar__title">{{ currentPageTitle }}</div>
-
-        <v-spacer />
-
-        <!-- Search bar (visual only) -->
-        <input
-          class="app-bar__search"
-          type="text"
-          placeholder="Find something here..."
-          disabled
-        />
+          <div class="app-bar__title">{{ currentPageTitle }}</div>
+        </div>
 
         <v-spacer />
 
@@ -170,12 +164,22 @@ const { mdAndUp } = useDisplay();
 
 const publicRoutes = new Set(["/", "/login"]);
 const drawer = ref(true);
+const drawerRail = ref(false);
 
 const isDesktop = computed(() => mdAndUp.value);
 const isDark = computed(() => theme.global.current.value.dark);
 
 const toggleTheme = () => {
   theme.global.name.value = isDark.value ? "gymLight" : "gymDark";
+};
+
+const toggleNavigation = () => {
+  if (isDesktop.value) {
+    drawerRail.value = !drawerRail.value;
+    return;
+  }
+
+  drawer.value = !drawer.value;
 };
 
 const userInitials = computed(() => {
@@ -292,4 +296,10 @@ watch(
     }
   },
 );
+
+watch(isDesktop, (desktop) => {
+  if (!desktop) {
+    drawerRail.value = false;
+  }
+});
 </script>
