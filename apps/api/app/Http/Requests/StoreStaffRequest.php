@@ -25,7 +25,7 @@ class StoreStaffRequest extends FormRequest
             'email' => ['required', 'email', 'max:255', 'unique:users,email'],
             'password' => ['required', 'string', 'min:8'],
             'role' => ['required', Rule::in(['gym_admin', 'staff'])],
-            'staff_role' => ['nullable', Rule::in(['owner', 'manager', 'front_desk', 'trainer'])],
+            'staff_role' => ['nullable', Rule::in(['owner', 'manager', 'front_desk'])],
             'status' => ['required', Rule::in(['active', 'inactive'])],
             'permissions' => ['nullable', 'array'],
             'permissions.*' => ['string', Rule::in(GymPermission::all())],

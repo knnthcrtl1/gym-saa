@@ -274,7 +274,6 @@ const staffRoleOptions = [
   { label: "Gym owner", value: "owner" },
   { label: "Manager", value: "manager" },
   { label: "Front desk", value: "front_desk" },
-  { label: "Trainer", value: "trainer" },
 ] as const;
 
 const statusOptions: StaffPayload["status"][] = ["active", "inactive"];
@@ -332,7 +331,9 @@ const fillForm = (staff: StaffUser) => {
     password: "",
     role: staff.role === "gym_admin" ? "gym_admin" : "staff",
     staff_role:
-      staff.role === "gym_admin" ? "owner" : (staff.staff_role ?? "front_desk"),
+      staff.role === "gym_admin"
+        ? "owner"
+        : normalizeStaffRole(staff.staff_role),
     status: staff.status,
     permissions: [
       ...(staff.permissions ??
@@ -366,8 +367,13 @@ const dialogTitle = computed(() =>
 const dialogDescription = computed(() =>
   isEdit.value
     ? "Adjust branch assignment, account status, and permissions without leaving the roster."
-    : "Create a login for a manager, front desk operator, trainer, or another admin.",
+    : "Create a login for a manager, front desk operator, or another admin.",
 );
+
+const normalizeStaffRole = (
+  staffRole?: string | null,
+): "manager" | "front_desk" =>
+  staffRole === "manager" ? "manager" : "front_desk";
 
 const heroTitle = computed(() => form.name || "New team member");
 
@@ -411,7 +417,10 @@ const submitForm = async () => {
       email: form.email,
       password: form.password || undefined,
       role: form.role,
-      staff_role: form.role === "gym_admin" ? "owner" : form.staff_role,
+      staff_role:
+        form.role === "gym_admin"
+          ? "owner"
+          : normalizeStaffRole(form.staff_role),
       status: form.status,
       permissions: form.permissions,
     };

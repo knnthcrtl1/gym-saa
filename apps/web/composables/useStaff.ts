@@ -7,7 +7,7 @@ export type StaffPayload = {
   email: string;
   password?: string | null;
   role: "gym_admin" | "staff";
-  staff_role?: "owner" | "manager" | "front_desk" | "trainer" | null;
+  staff_role?: "owner" | "manager" | "front_desk" | null;
   status: "active" | "inactive";
   permissions?: string[] | null;
 };

@@ -27,7 +27,7 @@ class UpdateStaffRequest extends FormRequest
             'email' => ['sometimes', 'email', 'max:255', Rule::unique('users', 'email')->ignore($staffId)],
             'password' => ['nullable', 'string', 'min:8'],
             'role' => ['sometimes', Rule::in(['gym_admin', 'staff'])],
-            'staff_role' => ['nullable', Rule::in(['owner', 'manager', 'front_desk', 'trainer'])],
+            'staff_role' => ['nullable', Rule::in(['owner', 'manager', 'front_desk'])],
             'status' => ['sometimes', Rule::in(['active', 'inactive'])],
             'permissions' => ['nullable', 'array'],
             'permissions.*' => ['string', Rule::in(GymPermission::all())],

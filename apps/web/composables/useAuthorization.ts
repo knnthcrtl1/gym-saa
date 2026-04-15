@@ -158,7 +158,7 @@ export const rolePresetLabels: Record<string, string> = {
   gym_admin: "Gym owner",
   manager: "Manager",
   front_desk: "Front desk",
-  trainer: "Trainer",
+  trainer: "Trainer (legacy)",
   staff: "Staff",
 };
 
