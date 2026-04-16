@@ -21,16 +21,33 @@ type CheckinMutationResponse = {
   data: Checkin;
 };
 
+type MutationOptions = {
+  idempotencyKey?: string;
+};
+
 export const useCheckins = () => {
   const { api } = useApi();
+
+  const mutationHeaders = (options?: MutationOptions) => {
+    if (!options?.idempotencyKey) {
+      return {};
+    }
+
+    return {
+      headers: {
+        "X-Idempotency-Key": options.idempotencyKey,
+      },
+    };
+  };
 
   const list = (params?: CheckinListParams) =>
     api<PaginatedResponse<Checkin>>("/checkins", { query: params });
 
-  const create = (payload: CheckinPayload) =>
+  const create = (payload: CheckinPayload, options?: MutationOptions) =>
     api<CheckinMutationResponse>("/checkins", {
       method: "POST",
       body: payload,
+      ...mutationHeaders(options),
     });
 
   return {

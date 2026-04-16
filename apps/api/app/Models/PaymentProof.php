@@ -5,7 +5,6 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Support\Facades\Storage;
 
 class PaymentProof extends Model
 {
@@ -42,10 +41,10 @@ class PaymentProof extends Model
 
     public function getUrlAttribute(): ?string
     {
-        if (! $this->path) {
+        if (! $this->path || ! $this->payment_id) {
             return null;
         }
 
-        return Storage::disk($this->disk)->url($this->path);
+        return rtrim(config('app.url'), '/').'/api/v1/payments/'.$this->payment_id.'/proofs/'.$this->id.'/download';
     }
 }

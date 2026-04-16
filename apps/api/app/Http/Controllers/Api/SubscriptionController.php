@@ -5,18 +5,28 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreSubscriptionRequest;
 use App\Http\Requests\UpdateSubscriptionRequest;
+use App\Models\IdempotencyKey;
 use App\Models\MembershipPlan;
 use App\Models\Subscription;
+use App\Services\AuditLogService;
+use App\Services\IdempotencyService;
 use App\Support\AuthorizesGymPermissions;
 use App\Support\BelongsToTenant;
 use App\Support\GymPermission;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class SubscriptionController extends Controller
 {
     use AuthorizesGymPermissions;
     use BelongsToTenant;
+
+    public function __construct(
+        private readonly AuditLogService $auditLogService,
+        private readonly IdempotencyService $idempotencyService,
+    ) {
+    }
 
     public function index(Request $request)
     {
@@ -52,12 +62,40 @@ class SubscriptionController extends Controller
 
         $data['end_date'] = $this->computeSubscriptionEndDate($data, $request);
 
-        $subscription = Subscription::create($data);
+        $claim = $this->idempotencyService->claim($request, 'subscriptions.create', $data);
 
-        return response()->json([
-            'message' => 'Subscription created successfully',
-            'data' => $subscription->load(['member', 'membershipPlan']),
-        ], 201);
+        if ($claim['replayed']) {
+            return $this->replaySubscriptionResponse($claim['record']);
+        }
+
+        try {
+            $subscription = DB::transaction(function () use ($data, $request) {
+                $subscription = Subscription::create($data);
+
+                $this->auditLogService->record(
+                    'subscription.created',
+                    $subscription,
+                    $request->user(),
+                    null,
+                    $this->subscriptionAuditState($subscription),
+                    null,
+                    "Created subscription #{$subscription->id}",
+                );
+
+                return $subscription;
+            });
+
+            $this->idempotencyService->complete($claim['record'], 201, Subscription::class, $subscription->id);
+
+            return response()->json([
+                'message' => 'Subscription created successfully',
+                'data' => $subscription->load(['member', 'membershipPlan']),
+            ], 201);
+        } catch (\Throwable $exception) {
+            $this->idempotencyService->forget($claim['record']);
+
+            throw $exception;
+        }
     }
 
     public function show(Request $request, Subscription $subscription)
@@ -96,7 +134,21 @@ class SubscriptionController extends Controller
             $data['end_date'] = $this->computeSubscriptionEndDate($data, $request, $scopedSubscription);
         }
 
-        $scopedSubscription->update($data);
+        $before = $this->subscriptionAuditState($scopedSubscription);
+
+        DB::transaction(function () use ($scopedSubscription, $data, $request, $before) {
+            $scopedSubscription->update($data);
+
+            $this->auditLogService->record(
+                'subscription.updated',
+                $scopedSubscription,
+                $request->user(),
+                $before,
+                $this->subscriptionAuditState($scopedSubscription->fresh()),
+                null,
+                "Updated subscription #{$scopedSubscription->id}",
+            );
+        });
 
         return response()->json([
             'message' => 'Subscription updated successfully',
@@ -110,11 +162,40 @@ class SubscriptionController extends Controller
             $this->scopeToTenant(Subscription::query()->whereKey($subscription->id), $request),
             $request,
         )->firstOrFail();
-        $scopedSubscription->delete();
+
+        $before = $this->subscriptionAuditState($scopedSubscription);
+
+        DB::transaction(function () use ($scopedSubscription, $request, $before) {
+            $this->auditLogService->record(
+                'subscription.deleted',
+                $scopedSubscription,
+                $request->user(),
+                $before,
+                null,
+                null,
+                "Deleted subscription #{$scopedSubscription->id}",
+            );
+
+            $scopedSubscription->delete();
+        });
 
         return response()->json([
             'message' => 'Subscription deleted successfully',
         ]);
+    }
+
+    public function auditLogs(Request $request, Subscription $subscription)
+    {
+        $this->requirePermission($request, GymPermission::SUBSCRIPTIONS_VIEW);
+
+        $scopedSubscription = $this->scopeToBranchIfStaff(
+            $this->scopeToTenant(Subscription::query()->whereKey($subscription->id), $request),
+            $request,
+        )->firstOrFail();
+
+        return response()->json(
+            $scopedSubscription->auditLogs()->with('actor')->latest()->paginate($request->integer('per_page', 15))
+        );
     }
 
     private function computeSubscriptionEndDate(array $data, Request $request, ?Subscription $existing = null): string
@@ -134,5 +215,30 @@ class SubscriptionController extends Controller
             'session' => $startDate->copy()->addMonths(1)->toDateString(),
             default => $startDate->copy()->addMonths(1)->toDateString(),
         };
+    }
+
+    private function subscriptionAuditState(Subscription $subscription): array
+    {
+        return [
+            'member_id' => $subscription->member_id,
+            'membership_plan_id' => $subscription->membership_plan_id,
+            'start_date' => $subscription->start_date?->toDateString(),
+            'end_date' => $subscription->end_date?->toDateString(),
+            'amount' => $subscription->amount,
+            'sessions_remaining' => $subscription->sessions_remaining,
+            'payment_status' => $subscription->payment_status,
+            'status' => $subscription->status,
+        ];
+    }
+
+    private function replaySubscriptionResponse(IdempotencyKey $record): \Illuminate\Http\JsonResponse
+    {
+        $subscription = Subscription::with(['member', 'membershipPlan'])
+            ->findOrFail($record->resource_id);
+
+        return response()->json([
+            'message' => 'Subscription already created for this idempotency key.',
+            'data' => $subscription,
+        ]);
     }
 }

@@ -5,18 +5,28 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreCheckinRequest;
 use App\Models\Checkin;
+use App\Models\IdempotencyKey;
 use App\Models\Member;
 use App\Models\Subscription;
+use App\Services\AuditLogService;
+use App\Services\IdempotencyService;
 use App\Support\AuthorizesGymPermissions;
 use App\Support\BelongsToTenant;
 use App\Support\GymPermission;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 
 class CheckinController extends Controller
 {
     use AuthorizesGymPermissions;
     use BelongsToTenant;
+
+    public function __construct(
+        private readonly AuditLogService $auditLogService,
+        private readonly IdempotencyService $idempotencyService,
+    ) {
+    }
 
     public function index(Request $request)
     {
@@ -78,6 +88,12 @@ class CheckinController extends Controller
 
         $subscription = $this->resolveSubscription($request, $member, $data['subscription_id'] ?? null);
 
+        $claim = $this->idempotencyService->claim($request, 'checkins.create', $data);
+
+        if ($claim['replayed']) {
+            return $this->replayCheckinResponse($claim['record']);
+        }
+
         $alreadyCheckedInToday = $this->scopeToBranchIfStaff(
             $this->scopeToTenant(
                 Checkin::query()
@@ -89,24 +105,53 @@ class CheckinController extends Controller
         )->exists();
 
         if ($alreadyCheckedInToday) {
+            $this->idempotencyService->forget($claim['record']);
+
             throw new HttpException(422, 'Member is already checked in for today.');
         }
 
-        $checkin = Checkin::query()->create([
-            'tenant_id' => $data['tenant_id'],
-            'branch_id' => $data['branch_id'],
-            'member_id' => $member->id,
-            'subscription_id' => $subscription->id,
-            'checkin_time' => now(),
-            'source' => $data['source'] ?? 'manual',
-            'status' => 'checked_in',
-            'verified_by' => $request->user()?->id,
-        ])->load(['member', 'subscription.membershipPlan', 'verifier']);
+        try {
+            $checkin = DB::transaction(function () use ($data, $member, $subscription, $request) {
+                $checkin = Checkin::query()->create([
+                    'tenant_id' => $data['tenant_id'],
+                    'branch_id' => $data['branch_id'],
+                    'member_id' => $member->id,
+                    'subscription_id' => $subscription->id,
+                    'checkin_time' => now(),
+                    'source' => $data['source'] ?? 'manual',
+                    'status' => 'checked_in',
+                    'verified_by' => $request->user()?->id,
+                ]);
 
-        return response()->json([
-            'message' => 'Check-in recorded successfully',
-            'data' => $checkin,
-        ], 201);
+                $this->auditLogService->record(
+                    'checkin.created',
+                    $checkin,
+                    $request->user(),
+                    null,
+                    [
+                        'member_id' => $checkin->member_id,
+                        'subscription_id' => $checkin->subscription_id,
+                        'source' => $checkin->source,
+                        'checkin_time' => $checkin->checkin_time?->toDateTimeString(),
+                    ],
+                    null,
+                    "Check-in recorded for member #{$member->id}",
+                );
+
+                return $checkin->load(['member', 'subscription.membershipPlan', 'verifier']);
+            });
+
+            $this->idempotencyService->complete($claim['record'], 201, Checkin::class, $checkin->id);
+
+            return response()->json([
+                'message' => 'Check-in recorded successfully',
+                'data' => $checkin,
+            ], 201);
+        } catch (\Throwable $exception) {
+            $this->idempotencyService->forget($claim['record']);
+
+            throw $exception;
+        }
     }
 
     private function expirePastSubscriptions(Member $member): void
@@ -153,9 +198,31 @@ class CheckinController extends Controller
         }
 
         if ($subscription->status === 'pending') {
+            $beforeStatus = $subscription->status;
             $subscription->update(['status' => 'active']);
+
+            $this->auditLogService->record(
+                'subscription.activated',
+                $subscription->fresh(),
+                $request->user(),
+                ['status' => $beforeStatus],
+                ['status' => 'active'],
+                ['trigger' => 'checkin_auto_activation'],
+                "Subscription #{$subscription->id} auto-activated on check-in",
+            );
         }
 
         return $subscription->fresh();
+    }
+
+    private function replayCheckinResponse(IdempotencyKey $record): \Illuminate\Http\JsonResponse
+    {
+        $checkin = Checkin::with(['member', 'subscription.membershipPlan', 'verifier'])
+            ->findOrFail($record->resource_id);
+
+        return response()->json([
+            'message' => 'Check-in already recorded for this idempotency key.',
+            'data' => $checkin,
+        ]);
     }
 }

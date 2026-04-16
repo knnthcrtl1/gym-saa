@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\AuditLogController;
 use App\Http\Controllers\Api\BranchController;
 use App\Http\Controllers\Api\CheckinController;
 use App\Http\Controllers\Api\DashboardController;
@@ -34,6 +35,7 @@ Route::prefix('v1')->group(function () {
         Route::apiResource('members', MemberController::class);
         Route::apiResource('membership-plans', MembershipPlanController::class);
         Route::apiResource('subscriptions', SubscriptionController::class);
+        Route::get('/subscriptions/{subscription}/audit-logs', [SubscriptionController::class, 'auditLogs']);
         Route::apiResource('staff', StaffController::class);
         Route::get('/checkins', [CheckinController::class, 'index']);
         Route::post('/checkins', [CheckinController::class, 'store']);
@@ -44,6 +46,8 @@ Route::prefix('v1')->group(function () {
         Route::put('/payments/{payment}/verify', [PaymentController::class, 'verify']);
         Route::put('/payments/{payment}/reject', [PaymentController::class, 'reject']);
         Route::get('/payments/{payment}/audit-logs', [PaymentController::class, 'auditLogs']);
+        Route::get('/payments/{payment}/proofs/{proof}/download', [PaymentController::class, 'downloadProof']);
         Route::get('/payments/{payment}', [PaymentController::class, 'show']);
+        Route::get('/audit-logs', [AuditLogController::class, 'index']);
     });
 });

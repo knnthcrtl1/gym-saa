@@ -9,6 +9,7 @@ use App\Http\Requests\StorePaymentIntentRequest;
 use App\Http\Requests\UploadPaymentProofRequest;
 use App\Models\Member;
 use App\Models\Payment;
+use App\Models\PaymentProof;
 use App\Models\Subscription;
 use App\Models\IdempotencyKey;
 use App\Services\IdempotencyService;
@@ -17,6 +18,7 @@ use App\Support\AuthorizesGymPermissions;
 use App\Support\BelongsToTenant;
 use App\Support\GymPermission;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 
 class PaymentController extends Controller
@@ -192,6 +194,29 @@ class PaymentController extends Controller
 
         return response()->json(
             $resolvedPayment->auditLogs()->with('actor')->paginate($request->integer('per_page', 15))
+        );
+    }
+
+    public function downloadProof(Request $request, Payment $payment, PaymentProof $proof)
+    {
+        $this->requirePermission($request, GymPermission::PAYMENTS_VIEW);
+
+        $resolvedPayment = $this->findScopedPayment($request, $payment);
+
+        if ((int) $proof->payment_id !== (int) $resolvedPayment->id) {
+            abort(404);
+        }
+
+        $disk = Storage::disk($proof->disk);
+
+        if (! $disk->exists($proof->path)) {
+            abort(404, 'Proof file not found.');
+        }
+
+        return $disk->download(
+            $proof->path,
+            $proof->original_name,
+            ['Content-Type' => $proof->mime_type ?? 'application/octet-stream'],
         );
     }
 

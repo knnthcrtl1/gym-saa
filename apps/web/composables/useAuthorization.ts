@@ -97,6 +97,11 @@ export const permissionOptions: PermissionOption[] = [
     label: "Tenants manage",
     description: "Create and manage tenant accounts.",
   },
+  {
+    value: "audit_logs.view",
+    label: "Audit logs view",
+    description: "View the activity audit trail.",
+  },
 ];
 
 const permissionDefaults: Record<string, string[]> = {
@@ -117,6 +122,7 @@ const permissionDefaults: Record<string, string[]> = {
     "staff.manage",
     "branches.view",
     "branches.manage",
+    "audit_logs.view",
   ],
   manager: [
     "dashboard.view",

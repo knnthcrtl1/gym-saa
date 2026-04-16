@@ -102,7 +102,8 @@ class PaymentServiceTest extends TestCase
 
     public function test_manual_gcash_payment_with_proof_stays_pending_until_reviewed(): void
     {
-        Storage::fake('public');
+        $proofDisk = config('filesystems.payment_proof_disk', 'local');
+        Storage::fake($proofDisk);
 
         [
             'tenant' => $tenant,
@@ -130,7 +131,7 @@ class PaymentServiceTest extends TestCase
         $this->assertSame('pending', $payment->verification_status);
         $this->assertNull($payment->paid_at);
         $this->assertCount(1, $payment->proofs);
-        Storage::disk('public')->assertExists($payment->proofs->first()->path);
+        Storage::disk($proofDisk)->assertExists($payment->proofs->first()->path);
         $this->assertDatabaseHas('audit_logs', [
             'tenant_id' => $tenant->id,
             'branch_id' => $branch->id,

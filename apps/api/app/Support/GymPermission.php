@@ -40,6 +40,8 @@ class GymPermission
 
     public const TENANTS_MANAGE = 'tenants.manage';
 
+    public const AUDIT_LOGS_VIEW = 'audit_logs.view';
+
     /**
      * @return list<string>
      */
@@ -64,6 +66,7 @@ class GymPermission
             self::BRANCHES_MANAGE,
             self::TENANTS_VIEW,
             self::TENANTS_MANAGE,
+            self::AUDIT_LOGS_VIEW,
         ];
     }
 
@@ -94,6 +97,7 @@ class GymPermission
                 self::STAFF_MANAGE,
                 self::BRANCHES_VIEW,
                 self::BRANCHES_MANAGE,
+                self::AUDIT_LOGS_VIEW,
             ],
             'staff' => self::defaultForStaffRole($staffRole),
             default => [],

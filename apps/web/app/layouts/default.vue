@@ -202,6 +202,7 @@ const pageTitles: Record<string, string> = {
   "/staff": "Staff",
   "/branches": "Branches",
   "/tenants": "Tenants",
+  "/audit-logs": "Audit Logs",
 };
 
 const currentPageTitle = computed(() => {
@@ -267,6 +268,12 @@ const navigationItems = [
     to: "/tenants",
     icon: "lucide:building-2",
     permission: "tenants.view",
+  },
+  {
+    label: "Audit Logs",
+    to: "/audit-logs",
+    icon: "lucide:scroll-text",
+    permission: "audit_logs.view",
   },
 ];
 

@@ -2,7 +2,7 @@
 
 return [
 
-    'payment_proof_disk' => env('PAYMENT_PROOF_DISK', 'public'),
+    'payment_proof_disk' => env('PAYMENT_PROOF_DISK', 'local'),
 
     /*
     |--------------------------------------------------------------------------

@@ -196,3 +196,23 @@ export type DashboardResponse = {
 export type DashboardPreviewState = {
   isPreview: boolean;
 };
+
+export type AuditLog = {
+  id: number;
+  tenant_id: number;
+  branch_id?: number | null;
+  actor_id?: number | null;
+  action: string;
+  auditable_type: string;
+  auditable_id: number;
+  summary?: string | null;
+  before_state?: Record<string, unknown> | null;
+  after_state?: Record<string, unknown> | null;
+  changed_fields?: string[] | null;
+  metadata?: Record<string, unknown> | null;
+  created_at?: string | null;
+  actor?: {
+    id: number;
+    name: string;
+  } | null;
+};
