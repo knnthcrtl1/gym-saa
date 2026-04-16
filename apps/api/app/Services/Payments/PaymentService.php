@@ -7,15 +7,21 @@ use App\Models\PaymentProof;
 use App\Models\PaymentWebhook;
 use App\Models\Subscription;
 use App\Models\User;
+use App\Services\AuditLogService;
 use Carbon\Carbon;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Arr;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use RuntimeException;
 
 class PaymentService
 {
-    public function __construct(private readonly PayMongoService $payMongoService)
+    public function __construct(
+        private readonly PayMongoService $payMongoService,
+        private readonly AuditLogService $auditLogService,
+    )
     {
     }
 
@@ -23,34 +29,60 @@ class PaymentService
     {
         $resolved = $this->applyActorScope($data, $actor);
 
-        $payment = Payment::create([
-            'tenant_id' => $resolved['tenant_id'],
-            'branch_id' => $resolved['branch_id'],
-            'member_id' => $resolved['member_id'],
-            'subscription_id' => $resolved['subscription_id'] ?? null,
-            'gateway' => 'paymongo',
-            'currency' => strtoupper($resolved['currency'] ?? 'PHP'),
-            'payment_date' => now(),
-            'amount' => $resolved['amount'],
-            'payment_method' => 'online',
-            'reference_no' => null,
-            'notes' => $resolved['notes'] ?? null,
-            'status' => 'pending',
-            'recorded_by' => $actor?->id,
-        ]);
+        $payment = DB::transaction(function () use ($resolved, $actor) {
+            return Payment::query()->create([
+                'tenant_id' => $resolved['tenant_id'],
+                'branch_id' => $resolved['branch_id'],
+                'member_id' => $resolved['member_id'],
+                'subscription_id' => $resolved['subscription_id'] ?? null,
+                'gateway' => 'paymongo',
+                'currency' => strtoupper($resolved['currency'] ?? 'PHP'),
+                'payment_date' => now(),
+                'amount' => $resolved['amount'],
+                'payment_method' => 'online',
+                'reference_no' => null,
+                'notes' => $resolved['notes'] ?? null,
+                'status' => 'pending',
+                'recorded_by' => $actor?->id,
+            ]);
+        });
 
-        $payment->load(['member', 'subscription']);
+        try {
+            $payment->load(['member', 'subscription']);
+            $checkout = $this->payMongoService->createCheckoutSession($payment);
 
-        $checkout = $this->payMongoService->createCheckoutSession($payment);
+            DB::transaction(function () use ($payment, $checkout, $actor) {
+                $before = $this->paymentAuditState($payment->fresh());
 
-        $payment->update([
-            'gateway_checkout_session_id' => $checkout['id'],
-            'gateway_reference' => $checkout['reference_number'],
-            'checkout_url' => $checkout['checkout_url'],
-            'gateway_metadata' => $checkout['metadata'],
-            'raw_response' => $checkout['response'],
-            'reference_no' => $checkout['reference_number'],
-        ]);
+                $payment->update([
+                    'gateway_checkout_session_id' => $checkout['id'],
+                    'gateway_reference' => $checkout['reference_number'],
+                    'checkout_url' => $checkout['checkout_url'],
+                    'gateway_metadata' => $checkout['metadata'],
+                    'raw_response' => $checkout['response'],
+                    'reference_no' => $checkout['reference_number'],
+                ]);
+
+                $updatedPayment = $payment->fresh()->load($this->paymentRelations());
+
+                $this->auditLogService->record(
+                    'payments.checkout_created',
+                    $updatedPayment,
+                    $actor,
+                    $before,
+                    $this->paymentAuditState($updatedPayment),
+                    [
+                        'gateway' => 'paymongo',
+                        'checkout_session_id' => $checkout['id'],
+                    ],
+                    'Created a hosted checkout payment.',
+                );
+            });
+        } catch (\Throwable $exception) {
+            $payment->delete();
+
+            throw $exception;
+        }
 
         return [
             'payment' => $payment->fresh()->load(['member', 'subscription']),
@@ -69,31 +101,56 @@ class PaymentService
             throw new RuntimeException('A payment proof is required for owner QR and bank transfer payments.');
         }
 
-        $payment = Payment::create([
-            'tenant_id' => $resolved['tenant_id'],
-            'branch_id' => $resolved['branch_id'],
-            'member_id' => $resolved['member_id'],
-            'subscription_id' => $resolved['subscription_id'] ?? null,
-            'gateway' => null,
-            'currency' => strtoupper($resolved['currency'] ?? 'PHP'),
-            'payment_date' => Carbon::parse($resolved['payment_date']),
-            'paid_at' => $status === 'paid' ? Carbon::parse($resolved['payment_date']) : null,
-            'amount' => $resolved['amount'],
-            'payment_method' => $resolved['payment_method'],
-            'reference_no' => $resolved['reference_no'] ?? null,
-            'notes' => $resolved['notes'] ?? null,
-            'status' => $status,
-            'verification_status' => $reviewStatus,
-            'recorded_by' => $actor?->id,
-        ]);
+        $storedProof = null;
 
-        if ($proof) {
-            $this->storeProof($payment, $proof, $actor);
+        try {
+            return DB::transaction(function () use ($resolved, $status, $reviewStatus, $requiresReview, $actor, $proof, &$storedProof) {
+                $payment = Payment::query()->create([
+                    'tenant_id' => $resolved['tenant_id'],
+                    'branch_id' => $resolved['branch_id'],
+                    'member_id' => $resolved['member_id'],
+                    'subscription_id' => $resolved['subscription_id'] ?? null,
+                    'gateway' => null,
+                    'currency' => strtoupper($resolved['currency'] ?? 'PHP'),
+                    'payment_date' => Carbon::parse($resolved['payment_date']),
+                    'paid_at' => $status === 'paid' ? Carbon::parse($resolved['payment_date']) : null,
+                    'amount' => $resolved['amount'],
+                    'payment_method' => $resolved['payment_method'],
+                    'reference_no' => $resolved['reference_no'] ?? null,
+                    'notes' => $resolved['notes'] ?? null,
+                    'status' => $status,
+                    'verification_status' => $reviewStatus,
+                    'recorded_by' => $actor?->id,
+                ]);
+
+                if ($proof) {
+                    $storedProof = $this->storeProof($payment, $proof, $actor);
+                }
+
+                $this->syncSubscriptionPaymentStatus($payment->subscription);
+
+                $updatedPayment = $payment->fresh()->load($this->paymentRelations());
+
+                $this->auditLogService->record(
+                    'payments.manual_recorded',
+                    $updatedPayment,
+                    $actor,
+                    null,
+                    $this->paymentAuditState($updatedPayment),
+                    [
+                        'requires_review' => $requiresReview,
+                        'proof_uploaded' => (bool) $storedProof,
+                    ],
+                    'Recorded a manual payment.',
+                );
+
+                return $updatedPayment;
+            });
+        } catch (\Throwable $exception) {
+            $this->cleanupStoredProof($storedProof);
+
+            throw $exception;
         }
-
-        $this->syncSubscriptionPaymentStatus($payment->subscription);
-
-        return $payment->fresh()->load($this->paymentRelations());
     }
 
     public function uploadManualProof(Payment $payment, UploadedFile $proof, ?User $actor): Payment
@@ -102,60 +159,120 @@ class PaymentService
             throw new RuntimeException('Only owner QR and bank transfer payments can accept proof uploads.');
         }
 
-        $this->storeProof($payment, $proof, $actor);
+        $storedProof = null;
 
-        $payment->update([
-            'status' => 'pending',
-            'verification_status' => 'pending',
-            'reviewed_at' => null,
-            'reviewed_by' => null,
-            'review_notes' => null,
-            'paid_at' => null,
-        ]);
+        try {
+            return DB::transaction(function () use ($payment, $proof, $actor, &$storedProof) {
+                $before = $this->paymentAuditState($payment->fresh()->loadMissing('proofs'));
+                $storedProof = $this->storeProof($payment, $proof, $actor);
 
-        $this->syncSubscriptionPaymentStatus($payment->subscription);
+                $payment->update([
+                    'status' => 'pending',
+                    'verification_status' => 'pending',
+                    'reviewed_at' => null,
+                    'reviewed_by' => null,
+                    'review_notes' => null,
+                    'paid_at' => null,
+                ]);
 
-        return $payment->fresh()->load($this->paymentRelations());
+                $this->syncSubscriptionPaymentStatus($payment->subscription);
+
+                $updatedPayment = $payment->fresh()->load($this->paymentRelations());
+
+                $this->auditLogService->record(
+                    'payments.proof_uploaded',
+                    $updatedPayment,
+                    $actor,
+                    $before,
+                    $this->paymentAuditState($updatedPayment),
+                    [
+                        'proof_original_name' => $storedProof?->original_name,
+                        'proof_mime_type' => $storedProof?->mime_type,
+                    ],
+                    'Uploaded a payment proof.',
+                );
+
+                return $updatedPayment;
+            });
+        } catch (\Throwable $exception) {
+            $this->cleanupStoredProof($storedProof);
+
+            throw $exception;
+        }
     }
 
     public function verifyManualPayment(Payment $payment, ?User $actor, ?string $notes = null): Payment
     {
-        $this->ensureReviewablePayment($payment);
+        return DB::transaction(function () use ($payment, $actor, $notes) {
+            $payment = $payment->fresh()->loadMissing('proofs');
+            $before = $this->paymentAuditState($payment);
 
-        if (! $payment->proofs()->exists()) {
-            throw new RuntimeException('Upload a payment proof before verifying this payment.');
-        }
+            $this->ensurePendingReviewablePayment($payment);
 
-        $payment->update([
-            'status' => 'paid',
-            'verification_status' => 'verified',
-            'reviewed_at' => now(),
-            'reviewed_by' => $actor?->id,
-            'review_notes' => $notes,
-            'paid_at' => now(),
-        ]);
+            if (! $payment->proofs()->exists()) {
+                throw new RuntimeException('Upload a payment proof before verifying this payment.');
+            }
 
-        $this->syncSubscriptionPaymentStatus($payment->subscription);
+            $payment->update([
+                'status' => 'paid',
+                'verification_status' => 'verified',
+                'reviewed_at' => now(),
+                'reviewed_by' => $actor?->id,
+                'review_notes' => $notes,
+                'paid_at' => now(),
+            ]);
 
-        return $payment->fresh()->load($this->paymentRelations());
+            $this->syncSubscriptionPaymentStatus($payment->subscription);
+
+            $updatedPayment = $payment->fresh()->load($this->paymentRelations());
+
+            $this->auditLogService->record(
+                'payments.verified',
+                $updatedPayment,
+                $actor,
+                $before,
+                $this->paymentAuditState($updatedPayment),
+                ['review_notes' => $notes],
+                'Verified a pending payment.',
+            );
+
+            return $updatedPayment;
+        });
     }
 
     public function rejectManualPayment(Payment $payment, ?User $actor, ?string $notes = null): Payment
     {
-        $this->ensureReviewablePayment($payment);
+        return DB::transaction(function () use ($payment, $actor, $notes) {
+            $payment = $payment->fresh()->loadMissing('proofs');
+            $before = $this->paymentAuditState($payment);
 
-        $payment->update([
-            'status' => 'failed',
-            'verification_status' => 'rejected',
-            'reviewed_at' => now(),
-            'reviewed_by' => $actor?->id,
-            'review_notes' => $notes,
-            'paid_at' => null,
-        ]);
+            $this->ensurePendingReviewablePayment($payment);
 
-        $this->syncSubscriptionPaymentStatus($payment->subscription);
+            $payment->update([
+                'status' => 'failed',
+                'verification_status' => 'rejected',
+                'reviewed_at' => now(),
+                'reviewed_by' => $actor?->id,
+                'review_notes' => $notes,
+                'paid_at' => null,
+            ]);
 
-        return $payment->fresh()->load($this->paymentRelations());
+            $this->syncSubscriptionPaymentStatus($payment->subscription);
+
+            $updatedPayment = $payment->fresh()->load($this->paymentRelations());
+
+            $this->auditLogService->record(
+                'payments.rejected',
+                $updatedPayment,
+                $actor,
+                $before,
+                $this->paymentAuditState($updatedPayment),
+                ['review_notes' => $notes],
+                'Rejected a pending payment.',
+            );
+
+            return $updatedPayment;
+        });
     }
 
     public function handlePayMongoWebhook(string $rawPayload, array $headers): array
@@ -317,38 +434,76 @@ class PaymentService
 
     private function markPaymentPaid(Payment $payment, array $payload, array $resource): void
     {
-        $payment->update([
-            'status' => 'paid',
-            'verification_status' => 'not_required',
-            'paid_at' => now(),
-            'gateway_payment_id' => Arr::get($resource, 'attributes.payments.0.id')
-                ?? Arr::get($resource, 'id')
-                ?? $payment->gateway_payment_id,
-            'gateway_reference' => Arr::get($resource, 'attributes.reference_number')
-                ?? $payment->gateway_reference,
-            'raw_response' => $payload,
-            'checkout_url' => Arr::get($resource, 'attributes.checkout_url') ?? $payment->checkout_url,
-        ]);
+        DB::transaction(function () use ($payment, $payload, $resource) {
+            $payment = $payment->fresh();
+            $before = $this->paymentAuditState($payment);
 
-        $this->syncSubscriptionPaymentStatus($payment->subscription);
+            $payment->update([
+                'status' => 'paid',
+                'verification_status' => 'not_required',
+                'paid_at' => now(),
+                'gateway_payment_id' => Arr::get($resource, 'attributes.payments.0.id')
+                    ?? Arr::get($resource, 'id')
+                    ?? $payment->gateway_payment_id,
+                'gateway_reference' => Arr::get($resource, 'attributes.reference_number')
+                    ?? $payment->gateway_reference,
+                'raw_response' => $payload,
+                'checkout_url' => Arr::get($resource, 'attributes.checkout_url') ?? $payment->checkout_url,
+            ]);
+
+            $this->syncSubscriptionPaymentStatus($payment->subscription);
+
+            $updatedPayment = $payment->fresh()->load($this->paymentRelations());
+
+            $this->auditLogService->record(
+                'payments.webhook_paid',
+                $updatedPayment,
+                null,
+                $before,
+                $this->paymentAuditState($updatedPayment),
+                ['provider' => 'paymongo'],
+                'Marked payment as paid from gateway webhook.',
+            );
+        });
     }
 
     private function markPaymentFailed(Payment $payment, array $payload, array $resource): void
     {
-        $payment->update([
-            'status' => 'failed',
-            'verification_status' => 'not_required',
-            'gateway_payment_id' => Arr::get($resource, 'id') ?? $payment->gateway_payment_id,
-            'raw_response' => $payload,
-        ]);
+        DB::transaction(function () use ($payment, $payload, $resource) {
+            $payment = $payment->fresh();
+            $before = $this->paymentAuditState($payment);
 
-        $this->syncSubscriptionPaymentStatus($payment->subscription);
+            $payment->update([
+                'status' => 'failed',
+                'verification_status' => 'not_required',
+                'gateway_payment_id' => Arr::get($resource, 'id') ?? $payment->gateway_payment_id,
+                'raw_response' => $payload,
+            ]);
+
+            $this->syncSubscriptionPaymentStatus($payment->subscription);
+
+            $updatedPayment = $payment->fresh()->load($this->paymentRelations());
+
+            $this->auditLogService->record(
+                'payments.webhook_failed',
+                $updatedPayment,
+                null,
+                $before,
+                $this->paymentAuditState($updatedPayment),
+                ['provider' => 'paymongo'],
+                'Marked payment as failed from gateway webhook.',
+            );
+        });
     }
 
-    private function ensureReviewablePayment(Payment $payment): void
+    private function ensurePendingReviewablePayment(Payment $payment): void
     {
         if (! in_array($payment->payment_method, ['gcash', 'bank_transfer'], true) || $payment->gateway) {
             throw new RuntimeException('This payment does not use the manual proof review flow.');
+        }
+
+        if ($payment->verification_status !== 'pending') {
+            throw new RuntimeException('Only pending proof-review payments can be reviewed.');
         }
     }
 
@@ -367,6 +522,37 @@ class PaymentService
         ]);
     }
 
+    private function cleanupStoredProof(?PaymentProof $proof): void
+    {
+        if (! $proof || ! $proof->path) {
+            return;
+        }
+
+        Storage::disk($proof->disk)->delete($proof->path);
+    }
+
+    private function paymentAuditState(Payment $payment): array
+    {
+        $payment->loadMissing('proofs');
+
+        return [
+            'member_id' => (int) $payment->member_id,
+            'subscription_id' => $payment->subscription_id ? (int) $payment->subscription_id : null,
+            'gateway' => $payment->gateway,
+            'currency' => $payment->currency,
+            'amount' => (string) $payment->amount,
+            'payment_method' => $payment->payment_method,
+            'reference_no' => $payment->reference_no,
+            'status' => $payment->status,
+            'verification_status' => $payment->verification_status,
+            'payment_date' => optional($payment->payment_date)?->toISOString(),
+            'paid_at' => optional($payment->paid_at)?->toISOString(),
+            'reviewed_by' => $payment->reviewed_by,
+            'review_notes' => $payment->review_notes,
+            'proof_count' => $payment->proofs->count(),
+        ];
+    }
+
     private function paymentRelations(): array
     {
         return [
@@ -375,6 +561,7 @@ class PaymentService
             'recorder',
             'reviewer',
             'proofs.uploader',
+            'auditLogs.actor',
         ];
     }
 }

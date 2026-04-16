@@ -2,9 +2,11 @@
 
 namespace Tests\Feature;
 
+use App\Models\AuditLog;
 use App\Models\Branch;
 use App\Models\Member;
 use App\Models\MembershipPlan;
+use App\Models\Payment;
 use App\Models\Subscription;
 use App\Models\Tenant;
 use App\Models\User;
@@ -87,6 +89,15 @@ class PaymentServiceTest extends TestCase
             'reference_no' => 'GYM-PAY-1',
             'checkout_url' => 'https://checkout.paymongo.test/session/cs_test_123',
         ]);
+
+        $this->assertDatabaseHas('audit_logs', [
+            'tenant_id' => $tenant->id,
+            'branch_id' => $branch->id,
+            'actor_id' => null,
+            'action' => 'payments.checkout_created',
+            'auditable_type' => Payment::class,
+            'auditable_id' => $result['payment']->id,
+        ]);
     }
 
     public function test_manual_gcash_payment_with_proof_stays_pending_until_reviewed(): void
@@ -120,6 +131,14 @@ class PaymentServiceTest extends TestCase
         $this->assertNull($payment->paid_at);
         $this->assertCount(1, $payment->proofs);
         Storage::disk('public')->assertExists($payment->proofs->first()->path);
+        $this->assertDatabaseHas('audit_logs', [
+            'tenant_id' => $tenant->id,
+            'branch_id' => $branch->id,
+            'actor_id' => $actor->id,
+            'action' => 'payments.manual_recorded',
+            'auditable_type' => Payment::class,
+            'auditable_id' => $payment->id,
+        ]);
 
         $subscription->refresh();
         $this->assertSame('unpaid', $subscription->payment_status);
@@ -158,6 +177,14 @@ class PaymentServiceTest extends TestCase
         $this->assertSame($actor->id, $reviewedPayment->reviewed_by);
         $this->assertSame('Confirmed in bank ledger', $reviewedPayment->review_notes);
         $this->assertNotNull($reviewedPayment->paid_at);
+        $this->assertDatabaseHas('audit_logs', [
+            'tenant_id' => $tenant->id,
+            'branch_id' => $branch->id,
+            'actor_id' => $actor->id,
+            'action' => 'payments.verified',
+            'auditable_type' => Payment::class,
+            'auditable_id' => $reviewedPayment->id,
+        ]);
 
         $subscription->refresh();
         $this->assertSame('paid', $subscription->payment_status);
@@ -194,6 +221,14 @@ class PaymentServiceTest extends TestCase
         $this->assertSame('rejected', $reviewedPayment->verification_status);
         $this->assertSame('Reference did not match', $reviewedPayment->review_notes);
         $this->assertNull($reviewedPayment->paid_at);
+        $this->assertDatabaseHas('audit_logs', [
+            'tenant_id' => $tenant->id,
+            'branch_id' => $branch->id,
+            'actor_id' => $actor->id,
+            'action' => 'payments.rejected',
+            'auditable_type' => Payment::class,
+            'auditable_id' => $reviewedPayment->id,
+        ]);
 
         $subscription->refresh();
         $this->assertSame('unpaid', $subscription->payment_status);

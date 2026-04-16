@@ -10,6 +10,8 @@ use App\Http\Requests\UploadPaymentProofRequest;
 use App\Models\Member;
 use App\Models\Payment;
 use App\Models\Subscription;
+use App\Models\IdempotencyKey;
+use App\Services\IdempotencyService;
 use App\Services\Payments\PaymentService;
 use App\Support\AuthorizesGymPermissions;
 use App\Support\BelongsToTenant;
@@ -22,7 +24,10 @@ class PaymentController extends Controller
     use AuthorizesGymPermissions;
     use BelongsToTenant;
 
-    public function __construct(private readonly PaymentService $paymentService)
+    public function __construct(
+        private readonly PaymentService $paymentService,
+        private readonly IdempotencyService $idempotencyService,
+    )
     {
     }
 
@@ -57,15 +62,28 @@ class PaymentController extends Controller
         $data = $request->validated();
         $this->ensureScopedEntities($request, $data);
 
-        $result = $this->paymentService->createCheckoutPayment($data, $request->user());
+        $claim = $this->idempotencyService->claim($request, 'payments.intent', $data);
 
-        return response()->json([
-            'message' => 'Payment checkout created successfully',
-            'data' => [
-                'payment' => $result['payment'],
-                'checkout_url' => $result['checkout_url'],
-            ],
-        ], 201);
+        if ($claim['replayed']) {
+            return $this->replayPaymentResponse($claim['record'], true);
+        }
+
+        try {
+            $result = $this->paymentService->createCheckoutPayment($data, $request->user());
+            $this->idempotencyService->complete($claim['record'], 201, Payment::class, $result['payment']->id);
+
+            return response()->json([
+                'message' => 'Payment checkout created successfully',
+                'data' => [
+                    'payment' => $result['payment'],
+                    'checkout_url' => $result['checkout_url'],
+                ],
+            ], 201);
+        } catch (\Throwable $exception) {
+            $this->idempotencyService->forget($claim['record']);
+
+            throw $exception;
+        }
     }
 
     public function storeManual(StoreManualPaymentRequest $request)
@@ -73,16 +91,37 @@ class PaymentController extends Controller
         $data = $request->validated();
         $this->ensureScopedEntities($request, $data);
 
-        $payment = $this->paymentService->recordManualPayment(
-            $data,
-            $request->user(),
-            $request->file('proof'),
+        $claim = $this->idempotencyService->claim(
+            $request,
+            'payments.manual',
+            [
+                ...$data,
+                'proof' => $this->proofFingerprint($request),
+            ],
         );
 
-        return response()->json([
-            'message' => 'Payment recorded successfully',
-            'data' => $payment,
-        ], 201);
+        if ($claim['replayed']) {
+            return $this->replayPaymentResponse($claim['record'], false);
+        }
+
+        try {
+            $payment = $this->paymentService->recordManualPayment(
+                $data,
+                $request->user(),
+                $request->file('proof'),
+            );
+
+            $this->idempotencyService->complete($claim['record'], 201, Payment::class, $payment->id);
+
+            return response()->json([
+                'message' => 'Payment recorded successfully',
+                'data' => $payment,
+            ], 201);
+        } catch (\Throwable $exception) {
+            $this->idempotencyService->forget($claim['record']);
+
+            throw $exception;
+        }
     }
 
     public function uploadProof(UploadPaymentProofRequest $request, Payment $payment)
@@ -145,6 +184,17 @@ class PaymentController extends Controller
         ]);
     }
 
+    public function auditLogs(Request $request, Payment $payment)
+    {
+        $this->requirePermission($request, GymPermission::PAYMENTS_VIEW);
+
+        $resolvedPayment = $this->findScopedPayment($request, $payment);
+
+        return response()->json(
+            $resolvedPayment->auditLogs()->with('actor')->paginate($request->integer('per_page', 15))
+        );
+    }
+
     private function findScopedPayment(Request $request, Payment $payment): Payment
     {
         return $this->scopeToBranchIfStaff(
@@ -174,5 +224,41 @@ class PaymentController extends Controller
                 throw new HttpException(422, 'Selected subscription does not belong to the provided member.');
             }
         }
+    }
+
+    private function replayPaymentResponse(IdempotencyKey $record, bool $isCheckout): \Illuminate\Http\JsonResponse
+    {
+        $payment = Payment::with(['member', 'subscription.membershipPlan', 'recorder', 'reviewer', 'proofs.uploader'])
+            ->findOrFail($record->resource_id);
+
+        if ($isCheckout) {
+            return response()->json([
+                'message' => 'Payment checkout already created for this idempotency key.',
+                'data' => [
+                    'payment' => $payment,
+                    'checkout_url' => $payment->checkout_url,
+                ],
+            ]);
+        }
+
+        return response()->json([
+            'message' => 'Payment already recorded for this idempotency key.',
+            'data' => $payment,
+        ]);
+    }
+
+    private function proofFingerprint(Request $request): ?array
+    {
+        $proof = $request->file('proof');
+
+        if (! $proof) {
+            return null;
+        }
+
+        return [
+            'name' => $proof->getClientOriginalName(),
+            'size' => $proof->getSize(),
+            'mime_type' => $proof->getClientMimeType(),
+        ];
     }
 }

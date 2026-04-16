@@ -3,7 +3,7 @@
     <PageHeader
       eyebrow="Revenue desk"
       title="Payments"
-      description="Track pending checkout links, manual settlements, and subscription payment state from one place."
+      description="Track cash settlements, proof-based reviews, and optional online checkout activity from one place."
     >
       <template #actions>
         <span class="surface-pill">
@@ -53,8 +53,8 @@
 
     <TableShell
       eyebrow="Payment ledger"
-      title="Settlements and checkout drafts"
-      description="Hosted checkout links stay pending until the PayMongo webhook updates the payment row."
+      title="Settlements and payment activity"
+      description="Manual settlements and proof reviews stay front and center, while online checkout remains available when needed."
     >
       <template #notice>
         <v-alert v-if="noticeMessage" :type="noticeTone" variant="tonal">
@@ -296,7 +296,7 @@ const noticeMessage = computed(() => {
   }
 
   if (route.query.checkout === "success") {
-    return "Returned from PayMongo checkout. Payment status will update after the webhook is processed.";
+    return "Returned from online checkout. Payment status will update after the webhook is processed.";
   }
 
   if (route.query.checkout === "cancelled") {
@@ -384,7 +384,7 @@ const fallbackSubscription = (payment: Payment) =>
 
 const paymentMethodLabel = (payment: Payment) => {
   if (payment.gateway === "paymongo") {
-    return "paymongo";
+    return "online checkout";
   }
 
   return payment.payment_method.replaceAll("_", " ");

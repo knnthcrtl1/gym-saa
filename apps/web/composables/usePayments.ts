@@ -40,6 +40,10 @@ export type PaymentReviewPayload = {
   notes?: string | null;
 };
 
+type PaymentMutationOptions = {
+  idempotencyKey?: string;
+};
+
 type PaymentResponse = {
   data: Payment;
 };
@@ -91,17 +95,37 @@ export const usePayments = () => {
     return api<PaymentResponse>(`/payments/${id}`);
   };
 
-  const createIntent = (payload: PaymentIntentPayload) => {
+  const mutationOptions = (options?: PaymentMutationOptions) => {
+    if (!options?.idempotencyKey) {
+      return {};
+    }
+
+    return {
+      headers: {
+        "X-Idempotency-Key": options.idempotencyKey,
+      },
+    };
+  };
+
+  const createIntent = (
+    payload: PaymentIntentPayload,
+    options?: PaymentMutationOptions,
+  ) => {
     return api<PaymentIntentResponse>("/payments/intent", {
       method: "POST",
       body: payload,
+      ...mutationOptions(options),
     });
   };
 
-  const recordManual = (payload: ManualPaymentPayload) => {
+  const recordManual = (
+    payload: ManualPaymentPayload,
+    options?: PaymentMutationOptions,
+  ) => {
     return api<PaymentMutationResponse>("/payments/manual", {
       method: "POST",
       body: toFormData(payload),
+      ...mutationOptions(options),
     });
   };
 

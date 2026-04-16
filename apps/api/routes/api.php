@@ -43,6 +43,7 @@ Route::prefix('v1')->group(function () {
         Route::post('/payments/{payment}/proof', [PaymentController::class, 'uploadProof']);
         Route::put('/payments/{payment}/verify', [PaymentController::class, 'verify']);
         Route::put('/payments/{payment}/reject', [PaymentController::class, 'reject']);
+        Route::get('/payments/{payment}/audit-logs', [PaymentController::class, 'auditLogs']);
         Route::get('/payments/{payment}', [PaymentController::class, 'show']);
     });
 });

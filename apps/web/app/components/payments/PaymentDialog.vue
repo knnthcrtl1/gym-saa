@@ -41,8 +41,8 @@
           <div>
             <h2 class="section-panel__title">Payment mode</h2>
             <p class="section-panel__body">
-              Route this payment through PayMongo checkout, an immediate cash
-              settlement, or a proof-based owner QR / bank transfer review.
+              Start with the fastest in-gym settlement path, then use online
+              checkout only when you intentionally want a hosted payment link.
             </p>
           </div>
         </div>
@@ -62,8 +62,8 @@
           <v-col cols="12" md="6">
             <v-alert type="info" variant="tonal">
               <template v-if="form.mode === 'online'">
-                PayMongo creates a hosted checkout link and waits for the
-                webhook to settle the payment.
+                Online checkout creates a hosted payment link and waits for the
+                gateway webhook to settle the payment.
               </template>
               <template v-else-if="form.mode === 'cash'">
                 Cash payments are recorded as paid immediately by staff.
@@ -156,9 +156,9 @@
           <div>
             <h2 class="section-panel__title">Settlement details</h2>
             <p class="section-panel__body">
-              Hosted checkout handles the settlement externally. Cash settles
-              immediately, while owner QR and bank transfer require proof for
-              review.
+              Cash settles immediately, proof-based payments stay pending for
+              review, and online checkout remains available for remote payment
+              collection.
             </p>
           </div>
         </div>
@@ -291,6 +291,7 @@ const { list: listSubscriptions } = useSubscriptions();
 const { createIntent, recordManual } = usePayments();
 
 const proofFile = ref<File | null>(null);
+const submissionKey = ref<string | null>(null);
 
 const internalOpen = computed({
   get: () => props.modelValue,
@@ -306,9 +307,9 @@ const availableSubscriptions = ref<Subscription[]>([]);
 const memberOptions = ref<SelectOption[]>([]);
 
 const modeOptions = [
-  { label: "Hosted PayMongo checkout", value: "online" },
   { label: "Cash payment", value: "cash" },
   { label: "Owner QR / bank transfer", value: "proof" },
+  { label: "Online hosted checkout", value: "online" },
 ] as const;
 
 const proofPaymentMethods = [
@@ -320,7 +321,7 @@ const proofPaymentMethods = [
 ];
 
 const defaultForm = (): PaymentDialogForm => ({
-  mode: "online",
+  mode: "cash",
   tenant_id: user.value?.tenant_id ?? 0,
   branch_id: user.value?.branch_id ?? 0,
   member_id: props.subscription?.member_id ?? 0,
@@ -408,27 +409,27 @@ const selectedSubscriptionLabel = computed(() => {
 });
 
 const dialogTitle = computed(() =>
-  form.mode === "online"
-    ? "Create checkout payment"
-    : form.mode === "cash"
-      ? "Record cash payment"
-      : "Submit proof-based payment",
+  form.mode === "cash"
+    ? "Record cash payment"
+    : form.mode === "proof"
+      ? "Submit proof-based payment"
+      : "Create checkout payment",
 );
 
 const dialogDescription = computed(() =>
-  form.mode === "online"
-    ? "Create a pending payment, attach PayMongo checkout metadata, and redirect the user to the hosted checkout page."
-    : form.mode === "cash"
-      ? "Capture a cash settlement and synchronize the linked subscription status immediately."
-      : "Record an owner QR or bank transfer payment and keep it pending until staff verify the uploaded proof.",
+  form.mode === "cash"
+    ? "Capture a cash settlement and synchronize the linked subscription status immediately."
+    : form.mode === "proof"
+      ? "Record an owner QR or bank transfer payment and keep it pending until staff verify the uploaded proof."
+      : "Create a pending online payment and redirect the user to the hosted checkout page.",
 );
 
 const actionLabel = computed(() =>
-  form.mode === "online"
-    ? "Continue to checkout"
-    : form.mode === "cash"
-      ? "Record cash payment"
-      : "Submit for review",
+  form.mode === "cash"
+    ? "Record cash payment"
+    : form.mode === "proof"
+      ? "Submit for review"
+      : "Continue to checkout",
 );
 
 const heroTitle = computed(() => {
@@ -448,27 +449,27 @@ const memberInitials = computed(() => {
 
 const formattedAmount = computed(() => formatCurrency(form.amount));
 const modeChip = computed(() => {
-  if (form.mode === "online") {
-    return "Hosted checkout";
-  }
-
   if (form.mode === "cash") {
     return "Cash settlement";
   }
 
-  return "Pending proof review";
+  if (form.mode === "proof") {
+    return "Pending proof review";
+  }
+
+  return "Online checkout";
 });
 
 const paymentMethodLabel = computed(() => {
-  if (form.mode === "online") {
-    return "PayMongo hosted checkout";
-  }
-
   if (form.mode === "cash") {
     return "cash";
   }
 
-  return form.payment_method;
+  if (form.mode === "proof") {
+    return form.payment_method;
+  }
+
+  return "online checkout";
 });
 
 const mapErrors = (apiErrors?: Record<string, string[]>) => {
@@ -486,7 +487,19 @@ const mapErrors = (apiErrors?: Record<string, string[]>) => {
 const resetForm = () => {
   Object.assign(form, defaultForm());
   proofFile.value = null;
+  submissionKey.value = null;
   clearErrors();
+};
+
+const getSubmissionKey = () => {
+  if (!submissionKey.value) {
+    submissionKey.value =
+      import.meta.client && "randomUUID" in crypto
+        ? crypto.randomUUID()
+        : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  }
+
+  return submissionKey.value;
 };
 
 const loadOptions = async () => {
@@ -543,16 +556,21 @@ const submitForm = async () => {
   }
 
   try {
+    const idempotencyKey = getSubmissionKey();
+
     if (form.mode === "online") {
-      const response = await createIntent({
-        tenant_id: form.tenant_id,
-        branch_id: form.branch_id,
-        member_id: form.member_id,
-        subscription_id: form.subscription_id,
-        amount: Number(form.amount),
-        currency: form.currency,
-        notes: form.notes || null,
-      });
+      const response = await createIntent(
+        {
+          tenant_id: form.tenant_id,
+          branch_id: form.branch_id,
+          member_id: form.member_id,
+          subscription_id: form.subscription_id,
+          amount: Number(form.amount),
+          currency: form.currency,
+          notes: form.notes || null,
+        },
+        { idempotencyKey },
+      );
 
       emit("saved");
       closeDialog();
@@ -564,19 +582,22 @@ const submitForm = async () => {
       return;
     }
 
-    await recordManual({
-      tenant_id: form.tenant_id,
-      branch_id: form.branch_id,
-      member_id: form.member_id,
-      subscription_id: form.subscription_id,
-      payment_date: form.payment_date,
-      amount: Number(form.amount),
-      payment_method: form.mode === "cash" ? "cash" : form.payment_method,
-      reference_no: form.reference_no || null,
-      notes: form.notes || null,
-      status: form.mode === "cash" ? "paid" : "pending",
-      proof: form.mode === "proof" ? proofFile.value : null,
-    });
+    await recordManual(
+      {
+        tenant_id: form.tenant_id,
+        branch_id: form.branch_id,
+        member_id: form.member_id,
+        subscription_id: form.subscription_id,
+        payment_date: form.payment_date,
+        amount: Number(form.amount),
+        payment_method: form.mode === "cash" ? "cash" : form.payment_method,
+        reference_no: form.reference_no || null,
+        notes: form.notes || null,
+        status: form.mode === "cash" ? "paid" : "pending",
+        proof: form.mode === "proof" ? proofFile.value : null,
+      },
+      { idempotencyKey },
+    );
 
     emit("saved");
     closeDialog();

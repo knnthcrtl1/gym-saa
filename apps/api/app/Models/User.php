@@ -118,4 +118,9 @@ class User extends Authenticatable
     {
         return $this->hasMany(Checkin::class, 'verified_by');
     }
+
+    public function auditLogs(): HasMany
+    {
+        return $this->hasMany(AuditLog::class, 'actor_id');
+    }
 }
