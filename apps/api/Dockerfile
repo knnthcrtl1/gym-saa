@@ -1,0 +1,32 @@
+FROM php:8.2-cli
+
+RUN apt-get update && apt-get install -y \
+    libpq-dev \
+    libzip-dev \
+    unzip \
+    curl \
+    && docker-php-ext-install pdo pdo_pgsql zip bcmath \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
+
+COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
+
+WORKDIR /app
+
+COPY composer.json composer.lock ./
+RUN composer install --no-dev --optimize-autoloader --no-interaction --no-scripts
+
+COPY . .
+
+RUN composer dump-autoload --optimize
+
+RUN php artisan config:clear \
+    && php artisan route:clear \
+    && php artisan view:clear
+
+RUN mkdir -p storage/framework/{cache,sessions,views} \
+    && mkdir -p storage/app/public \
+    && chmod -R 775 storage bootstrap/cache
+
+EXPOSE 8080
+
+CMD php artisan migrate --force && php artisan serve --host=0.0.0.0 --port=8080
