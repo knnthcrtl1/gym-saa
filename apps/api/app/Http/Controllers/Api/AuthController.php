@@ -22,11 +22,14 @@ class AuthController extends Controller
             ]);
         }
 
-        $request->session()->regenerate();
+        $user = Auth::user();
+        $user->tokens()->delete();
+        $token = $user->createToken('api')->plainTextToken;
 
         return response()->json([
             'message' => 'Login successful',
-            'user' => $request->user()?->toAuthArray(),
+            'user' => $user->toAuthArray(),
+            'token' => $token,
         ]);
     }
 
@@ -39,10 +42,7 @@ class AuthController extends Controller
 
     public function logout(Request $request)
     {
-        Auth::guard('web')->logout();
-
-        $request->session()->invalidate();
-        $request->session()->regenerateToken();
+        $request->user()->currentAccessToken()->delete();
 
         return response()->json([
             'message' => 'Logged out successfully',

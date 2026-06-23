@@ -1,42 +1,24 @@
 import type { AuthUser, LoginPayload, MeResponse } from "../types/auth";
 
-function readCookie(name: string): string | undefined {
-  if (import.meta.server) return undefined;
-  const match = document.cookie.match(
-    new RegExp("(^|;\\s*)" + name + "=([^;]*)"),
-  );
-  return match?.[2] ? decodeURIComponent(match[2]) : undefined;
-}
-
 export const useAuth = () => {
   const config = useRuntimeConfig();
   const user = useState<AuthUser | null>("auth.user", () => null);
   const initialized = useState<boolean>("auth.initialized", () => false);
-  const forwardedHeaders = import.meta.server
-    ? useRequestHeaders(["cookie", "x-xsrf-token"])
-    : undefined;
+  const token = useCookie("auth_token", { maxAge: 60 * 60 * 24 * 30 });
 
   const api = $fetch.create({
     baseURL: config.public.apiBase,
-    credentials: "include",
     headers: {
       Accept: "application/json",
-      "X-Requested-With": "XMLHttpRequest",
-      ...forwardedHeaders,
     },
     onRequest({ options }) {
-      const token = readCookie("XSRF-TOKEN");
-      if (token) {
+      if (token.value) {
         const headers = new Headers(options.headers);
-        headers.set("X-XSRF-TOKEN", token);
+        headers.set("Authorization", `Bearer ${token.value}`);
         options.headers = headers;
       }
     },
   });
-
-  const csrf = async () => {
-    await api("/sanctum/csrf-cookie");
-  };
 
   const fetchUser = async () => {
     try {
@@ -45,6 +27,7 @@ export const useAuth = () => {
       return response.user;
     } catch {
       user.value = null;
+      token.value = null;
       return null;
     } finally {
       initialized.value = true;
@@ -52,14 +35,17 @@ export const useAuth = () => {
   };
 
   const login = async (payload: LoginPayload) => {
-    await csrf();
+    const response = await api<{ user: AuthUser; token: string }>(
+      "/api/v1/login",
+      {
+        method: "POST",
+        body: payload,
+      },
+    );
 
-    await api("/api/v1/login", {
-      method: "POST",
-      body: payload,
-    });
-
-    await fetchUser();
+    token.value = response.token;
+    user.value = response.user;
+    initialized.value = true;
   };
 
   const logout = async () => {
@@ -69,6 +55,7 @@ export const useAuth = () => {
       });
     } finally {
       user.value = null;
+      token.value = null;
       initialized.value = true;
       await navigateTo("/login");
     }
@@ -77,7 +64,6 @@ export const useAuth = () => {
   return {
     user,
     initialized,
-    csrf,
     fetchUser,
     login,
     logout,
