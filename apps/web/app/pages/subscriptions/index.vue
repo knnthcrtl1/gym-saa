@@ -21,7 +21,12 @@
           class="subscriptions-filter"
           prepend-inner-icon="mdi-tune-variant"
         />
-        <AppButton tone="primary" :loading="loading" @click="openCreate">
+        <AppButton
+          v-if="canManageSubscriptions"
+          tone="primary"
+          :loading="loading"
+          @click="openCreate"
+        >
           <Icon name="lucide:plus" size="18" class="mr-2" />
           Add subscription
         </AppButton>
@@ -70,6 +75,19 @@
 
       <template #actions>
         <div class="toolbar-cluster toolbar-cluster--end">
+          <span v-if="canManageSubscriptions" class="surface-pill">
+            {{ selectedIds.length }} selected
+          </span>
+          <AppButton
+            v-if="canManageSubscriptions && selectedIds.length"
+            tone="danger"
+            appearance="outline"
+            :loading="deleteLoading"
+            @click="promptBulkDelete"
+          >
+            <Icon name="lucide:trash-2" size="16" class="mr-2" />
+            Delete selected
+          </AppButton>
           <AppButton
             tone="neutral"
             appearance="outline"
@@ -85,6 +103,13 @@
         <v-table>
           <thead>
             <tr>
+              <th v-if="canManageSubscriptions" class="table-checkbox-cell">
+                <v-checkbox-btn
+                  :model-value="allVisibleSelected"
+                  :indeterminate="someVisibleSelected"
+                  @update:model-value="toggleSelectAll"
+                />
+              </th>
               <th>Member</th>
               <th>Plan</th>
               <th>Start</th>
@@ -92,18 +117,24 @@
               <th>Amount</th>
               <th>Payment</th>
               <th>Status</th>
-              <th class="text-right" />
+              <th v-if="rowActions.length" class="text-right" />
             </tr>
           </thead>
           <tbody>
             <tr v-if="loading">
-              <td colspan="8" class="text-center py-6">
+              <td
+                :colspan="canManageSubscriptions ? 9 : 8"
+                class="text-center py-6"
+              >
                 Loading subscriptions...
               </td>
             </tr>
 
             <tr v-else-if="subscriptions.length === 0">
-              <td colspan="8" class="text-center py-10">
+              <td
+                :colspan="canManageSubscriptions ? 9 : 8"
+                class="text-center py-10"
+              >
                 <div class="empty-state">
                   <div class="panel-label mb-2">No results</div>
                   No subscriptions matched the current filter.
@@ -112,6 +143,12 @@
             </tr>
 
             <tr v-for="subscription in subscriptions" :key="subscription.id">
+              <td v-if="canManageSubscriptions" class="table-checkbox-cell">
+                <v-checkbox-btn
+                  :model-value="selectedIds.includes(subscription.id)"
+                  @update:model-value="toggleSelected(subscription.id, $event)"
+                />
+              </td>
               <td>
                 <div class="table-primary-cell">
                   <div class="surface-avatar surface-avatar--sm">
@@ -148,7 +185,7 @@
               <td>
                 <AppStatusTag :label="subscription.status" />
               </td>
-              <td class="text-right">
+              <td v-if="rowActions.length" class="text-right">
                 <AppRowActions
                   :items="rowActions"
                   @select="handleRowAction($event, subscription)"
@@ -225,6 +262,7 @@
 </template>
 
 <script setup lang="ts">
+import { useAuthorization } from "../../../composables/useAuthorization";
 import PageHeader from "../../components/admin/PageHeader.vue";
 import PaymentDialog from "../../components/payments/PaymentDialog.vue";
 import TableShell from "../../components/admin/TableShell.vue";
@@ -245,9 +283,11 @@ type ApiPageError = {
 };
 
 definePageMeta({
-  middleware: ["auth"],
+  middleware: ["auth", "can"],
+  permission: "subscriptions.view",
 });
 
+const { hasPermission } = useAuthorization();
 const { list, remove } = useSubscriptions();
 
 const loading = ref(false);
@@ -255,12 +295,13 @@ const deleteLoading = ref(false);
 const subscriptions = ref<Subscription[]>([]);
 const selectedSubscription = ref<Subscription | null>(null);
 const paymentSubscription = ref<Subscription | null>(null);
+const selectedIds = ref<number[]>([]);
 const statusFilter = ref<SubscriptionPayload["status"] | "all">("all");
 const dialogOpen = ref(false);
 const paymentDialogOpen = ref(false);
 const confirmDeleteOpen = ref(false);
 const errorMessage = ref("");
-const confirmDeleteId = ref<number | null>(null);
+const confirmDeleteIds = ref<number[]>([]);
 const confirmDeleteMessage = ref("This action cannot be undone.");
 const pagination = reactive({
   total: 0,
@@ -270,24 +311,40 @@ const pagination = reactive({
   to: 0 as number | null,
 });
 
-const rowActions: AppRowActionItem[] = [
-  {
-    key: "pay",
-    label: "Record payment",
-    icon: "lucide:wallet",
-  },
-  {
-    key: "edit",
-    label: "Edit subscription",
-    icon: "lucide:square-pen",
-  },
-  {
-    key: "delete",
-    label: "Delete subscription",
-    icon: "lucide:trash-2",
-    tone: "danger",
-  },
-];
+const canManageSubscriptions = computed(() =>
+  hasPermission("subscriptions.manage"),
+);
+const canManagePayments = computed(() => hasPermission("payments.manage"));
+
+const rowActions = computed<AppRowActionItem[]>(() => {
+  const actions: AppRowActionItem[] = [];
+
+  if (canManagePayments.value) {
+    actions.push({
+      key: "pay",
+      label: "Record payment",
+      icon: "lucide:wallet",
+    });
+  }
+
+  if (canManageSubscriptions.value) {
+    actions.push(
+      {
+        key: "edit",
+        label: "Edit subscription",
+        icon: "lucide:square-pen",
+      },
+      {
+        key: "delete",
+        label: "Delete subscription",
+        icon: "lucide:trash-2",
+        tone: "danger",
+      },
+    );
+  }
+
+  return actions;
+});
 
 const statusOptions = [
   { label: "All statuses", value: "all" },
@@ -315,6 +372,9 @@ const loadSubscriptions = async (page = pagination.current_page) => {
     pagination.last_page = response.last_page;
     pagination.from = response.from;
     pagination.to = response.to;
+    selectedIds.value = selectedIds.value.filter((id) =>
+      response.data.some((subscription) => subscription.id === id),
+    );
   } catch (error) {
     const typedError = error as ApiPageError;
 
@@ -348,14 +408,32 @@ const handleDeleted = async () => {
   await loadSubscriptions(resolveReloadPage(1));
 };
 
-const promptDelete = (subscription: Subscription) => {
-  confirmDeleteId.value = subscription.id;
-  confirmDeleteMessage.value = `Delete ${memberName(subscription)}'s subscription? This action cannot be undone.`;
+const promptDelete = (subscriptionsToDelete: Subscription[]) => {
+  confirmDeleteIds.value = subscriptionsToDelete.map(
+    (subscription) => subscription.id,
+  );
+  const [firstSubscription] = subscriptionsToDelete;
+  confirmDeleteMessage.value =
+    subscriptionsToDelete.length === 1 && firstSubscription
+      ? `Delete ${memberName(firstSubscription)}'s subscription? This action cannot be undone.`
+      : `Delete ${subscriptionsToDelete.length} selected subscriptions? This action cannot be undone.`;
   confirmDeleteOpen.value = true;
 };
 
+const promptBulkDelete = () => {
+  const subscriptionsToDelete = subscriptions.value.filter((subscription) =>
+    selectedIds.value.includes(subscription.id),
+  );
+
+  if (!subscriptionsToDelete.length) {
+    return;
+  }
+
+  promptDelete(subscriptionsToDelete);
+};
+
 const confirmDelete = async () => {
-  if (confirmDeleteId.value === null) {
+  if (!confirmDeleteIds.value.length) {
     confirmDeleteOpen.value = false;
     return;
   }
@@ -364,9 +442,12 @@ const confirmDelete = async () => {
   errorMessage.value = "";
 
   try {
-    await remove(confirmDeleteId.value);
+    await Promise.all(confirmDeleteIds.value.map((id) => remove(id)));
+    selectedIds.value = selectedIds.value.filter(
+      (id) => !confirmDeleteIds.value.includes(id),
+    );
     confirmDeleteOpen.value = false;
-    await loadSubscriptions(resolveReloadPage(1));
+    await loadSubscriptions(resolveReloadPage(confirmDeleteIds.value.length));
   } catch (error) {
     const typedError = error as ApiPageError;
 
@@ -374,7 +455,7 @@ const confirmDelete = async () => {
       typedError.data?.message ?? "Unable to delete subscription.";
   } finally {
     deleteLoading.value = false;
-    confirmDeleteId.value = null;
+    confirmDeleteIds.value = [];
   }
 };
 
@@ -402,8 +483,31 @@ const handleRowAction = (action: string, subscription: Subscription) => {
   }
 
   if (action === "delete") {
-    promptDelete(subscription);
+    promptDelete([subscription]);
   }
+};
+
+const toggleSelected = (subscriptionId: number, checked: unknown) => {
+  if (checked) {
+    if (!selectedIds.value.includes(subscriptionId)) {
+      selectedIds.value = [...selectedIds.value, subscriptionId];
+    }
+
+    return;
+  }
+
+  selectedIds.value = selectedIds.value.filter((id) => id !== subscriptionId);
+};
+
+const toggleSelectAll = (checked: unknown) => {
+  if (checked) {
+    selectedIds.value = subscriptions.value.map(
+      (subscription) => subscription.id,
+    );
+    return;
+  }
+
+  selectedIds.value = [];
 };
 
 const changePage = async (page: number) => {
@@ -484,6 +588,18 @@ const endingSoonCount = computed(
     subscriptions.value.filter(
       (item) => item.status === "active" && isEndingSoon(item.end_date),
     ).length,
+);
+
+const allVisibleSelected = computed(
+  () =>
+    subscriptions.value.length > 0 &&
+    subscriptions.value.every((subscription) =>
+      selectedIds.value.includes(subscription.id),
+    ),
+);
+
+const someVisibleSelected = computed(
+  () => selectedIds.value.length > 0 && !allVisibleSelected.value,
 );
 
 watch(statusFilter, () => {

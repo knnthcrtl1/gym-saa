@@ -2,14 +2,18 @@
 
 namespace App\Http\Requests;
 
+use App\Http\Requests\Concerns\AuthorizesGymPermission;
+use App\Support\GymPermission;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
 class UpdateTenantRequest extends FormRequest
 {
+    use AuthorizesGymPermission;
+
     public function authorize(): bool
     {
-        return $this->user()?->role === 'super_admin';
+        return $this->userCan(GymPermission::TENANTS_MANAGE);
     }
 
     public function rules(): array

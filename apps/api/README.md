@@ -56,3 +56,12 @@ If you discover a security vulnerability within Laravel, please send an e-mail t
 ## License
 
 The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+
+## Local Payment Setup
+
+The API expects the PayMongo payment schema and env vars to be present in local development.
+
+1. Run `php artisan migrate` after pulling backend changes so the `payments` table includes the PayMongo columns added on 2026-04-12.
+2. Set the PayMongo keys in `.env` using `PAYMONGO_SECRET_KEY` and `PAYMONGO_WEBHOOK_SECRET`.
+3. Confirm `PAYMONGO_SUCCESS_URL` and `PAYMONGO_CANCEL_URL` point at your local frontend URL.
+4. For webhook testing, expose the API with a public HTTPS tunnel and configure PayMongo to call `/api/v1/webhooks/paymongo`.

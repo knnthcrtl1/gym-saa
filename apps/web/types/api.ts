@@ -42,6 +42,13 @@ export type Branch = {
   status: "active" | "inactive";
 };
 
+export type StaffUser = import("./auth").AuthUser & {
+  created_at?: string | null;
+  updated_at?: string | null;
+  branch?: Branch | null;
+  tenant?: Tenant | null;
+};
+
 export type Member = {
   id: number;
   tenant_id: number;
@@ -114,18 +121,72 @@ export type Payment = {
   reference_no?: string | null;
   notes?: string | null;
   status: "pending" | "paid" | "failed" | "refunded";
+  verification_status: "not_required" | "pending" | "verified" | "rejected";
+  reviewed_at?: string | null;
+  reviewed_by?: number | null;
+  review_notes?: string | null;
   recorded_by?: number | null;
   created_at?: string | null;
   updated_at?: string | null;
   member?: Member;
   subscription?: Subscription;
+  reviewer?: {
+    id: number;
+    name: string;
+  } | null;
+  proofs?: PaymentProof[];
+};
+
+export type PaymentProof = {
+  id: number;
+  payment_id: number;
+  disk: string;
+  path: string;
+  original_name: string;
+  mime_type?: string | null;
+  file_size?: number | null;
+  uploaded_by?: number | null;
+  created_at?: string | null;
+  updated_at?: string | null;
+  url?: string | null;
+  uploader?: {
+    id: number;
+    name: string;
+  } | null;
 };
 
 export type DashboardStats = {
   active_members: number;
+  expired_members: number;
   expired_subscriptions: number;
+  new_members_this_month: number;
   today_checkins: number;
+  payments_today: number;
+  payments_this_month: number;
+  income_today: number;
   monthly_revenue: number;
+  upcoming_renewals: number;
+};
+
+export type Checkin = {
+  id: number;
+  tenant_id: number;
+  branch_id: number;
+  member_id: number;
+  subscription_id: number;
+  checkin_time: string;
+  checkout_time?: string | null;
+  source: "manual" | "qr" | "kiosk";
+  status: string;
+  verified_by?: number | null;
+  created_at?: string | null;
+  updated_at?: string | null;
+  member?: Member;
+  subscription?: Subscription;
+  verifier?: {
+    id: number;
+    name: string;
+  } | null;
 };
 
 export type DashboardResponse = {
@@ -134,4 +195,24 @@ export type DashboardResponse = {
 
 export type DashboardPreviewState = {
   isPreview: boolean;
+};
+
+export type AuditLog = {
+  id: number;
+  tenant_id: number;
+  branch_id?: number | null;
+  actor_id?: number | null;
+  action: string;
+  auditable_type: string;
+  auditable_id: number;
+  summary?: string | null;
+  before_state?: Record<string, unknown> | null;
+  after_state?: Record<string, unknown> | null;
+  changed_fields?: string[] | null;
+  metadata?: Record<string, unknown> | null;
+  created_at?: string | null;
+  actor?: {
+    id: number;
+    name: string;
+  } | null;
 };

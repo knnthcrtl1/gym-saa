@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 
 class Payment extends Model
 {
@@ -31,6 +32,10 @@ class Payment extends Model
         'reference_no',
         'notes',
         'status',
+        'verification_status',
+        'reviewed_at',
+        'reviewed_by',
+        'review_notes',
         'recorded_by',
     ];
 
@@ -39,6 +44,7 @@ class Payment extends Model
         return [
             'payment_date' => 'datetime',
             'paid_at' => 'datetime',
+            'reviewed_at' => 'datetime',
             'amount' => 'decimal:2',
             'gateway_metadata' => 'array',
             'raw_response' => 'array',
@@ -70,8 +76,23 @@ class Payment extends Model
         return $this->belongsTo(User::class, 'recorded_by');
     }
 
+    public function reviewer(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'reviewed_by');
+    }
+
     public function webhooks(): HasMany
     {
         return $this->hasMany(PaymentWebhook::class);
+    }
+
+    public function proofs(): HasMany
+    {
+        return $this->hasMany(PaymentProof::class)->latest();
+    }
+
+    public function auditLogs(): MorphMany
+    {
+        return $this->morphMany(AuditLog::class, 'auditable')->latest();
     }
 }

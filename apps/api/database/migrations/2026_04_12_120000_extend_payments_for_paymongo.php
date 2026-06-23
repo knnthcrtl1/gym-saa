@@ -9,15 +9,15 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('payments', function (Blueprint $table) {
-            $table->string('gateway')->nullable()->after('subscription_id');
-            $table->string('currency', 3)->default('PHP')->after('gateway');
-            $table->string('gateway_checkout_session_id')->nullable()->after('currency');
-            $table->string('gateway_payment_id')->nullable()->after('gateway_checkout_session_id');
-            $table->string('gateway_reference')->nullable()->after('gateway_payment_id');
-            $table->text('checkout_url')->nullable()->after('gateway_reference');
-            $table->json('gateway_metadata')->nullable()->after('checkout_url');
-            $table->json('raw_response')->nullable()->after('gateway_metadata');
-            $table->dateTime('paid_at')->nullable()->after('payment_date');
+            $table->string('gateway')->nullable();
+            $table->string('currency', 3)->default('PHP');
+            $table->string('gateway_checkout_session_id')->nullable();
+            $table->string('gateway_payment_id')->nullable();
+            $table->string('gateway_reference')->nullable();
+            $table->text('checkout_url')->nullable();
+            $table->json('gateway_metadata')->nullable();
+            $table->json('raw_response')->nullable();
+            $table->dateTime('paid_at')->nullable();
 
             $table->index(['gateway', 'gateway_checkout_session_id']);
             $table->index(['gateway', 'gateway_payment_id']);

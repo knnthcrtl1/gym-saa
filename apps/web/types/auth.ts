@@ -5,7 +5,9 @@ export type AuthUser = {
   name: string;
   email: string;
   role: "super_admin" | "gym_admin" | "staff" | "member";
+  staff_role?: "owner" | "manager" | "front_desk" | "trainer" | null;
   status: "active" | "inactive";
+  permissions: string[];
 };
 
 export type MeResponse = {

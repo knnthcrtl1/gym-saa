@@ -7,18 +7,24 @@
       </h1>
       <p class="hero-panel__body">
         Manage members, subscriptions, payments, and attendance from a single
-        admin workspace built for gym operators.
+        admin workspace built for gym operators. New gyms are onboarded by the
+        super admin for this MVP so setup stays fast and supported.
       </p>
 
       <div class="hero-panel__actions">
-        <v-btn color="primary" size="large" to="/dashboard">
-          <Icon name="lucide:layout-dashboard" size="18" class="mr-2" />
-          Open dashboard
+        <v-btn color="primary" size="large" :href="requestDemoLink">
+          <Icon name="lucide:messages-square" size="18" class="mr-2" />
+          Request demo
         </v-btn>
         <v-btn size="large" variant="outlined" to="/login">
           <Icon name="lucide:log-in" size="18" class="mr-2" />
-          Sign in
+          Admin sign in
         </v-btn>
+      </div>
+
+      <div class="hero-panel__notice">
+        Public self-signup is intentionally deferred for now. Request a demo or
+        contact the super admin and your gym account will be created manually.
       </div>
 
       <div
@@ -59,6 +65,9 @@
 </template>
 
 <script setup lang="ts">
+const requestDemoLink =
+  "mailto:superadmin@gymsaas.local?subject=Gym%20SaaS%20Demo%20Request";
+
 const modules = [
   {
     title: "Dashboard",

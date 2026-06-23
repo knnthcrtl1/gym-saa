@@ -6,15 +6,20 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreMembershipPlanRequest;
 use App\Http\Requests\UpdateMembershipPlanRequest;
 use App\Models\MembershipPlan;
+use App\Support\AuthorizesGymPermissions;
 use App\Support\BelongsToTenant;
+use App\Support\GymPermission;
 use Illuminate\Http\Request;
 
 class MembershipPlanController extends Controller
 {
+    use AuthorizesGymPermissions;
     use BelongsToTenant;
 
     public function index(Request $request)
     {
+        $this->requirePermission($request, GymPermission::PLANS_VIEW);
+
         $query = $this->scopeToBranchIfStaff(
             $this->scopeToTenant(MembershipPlan::query(), $request),
             $request,
@@ -47,6 +52,8 @@ class MembershipPlanController extends Controller
 
     public function show(Request $request, MembershipPlan $membershipPlan)
     {
+        $this->requirePermission($request, GymPermission::PLANS_VIEW);
+
         $query = $this->scopeToBranchIfStaff(
             $this->scopeToTenant(MembershipPlan::query()->whereKey($membershipPlan->id), $request),
             $request,

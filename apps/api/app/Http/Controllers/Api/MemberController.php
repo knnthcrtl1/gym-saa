@@ -7,11 +7,14 @@ use App\Http\Requests\BulkDeleteMembersRequest;
 use App\Http\Requests\StoreMemberRequest;
 use App\Http\Requests\UpdateMemberRequest;
 use App\Models\Member;
+use App\Support\AuthorizesGymPermissions;
 use App\Support\BelongsToTenant;
+use App\Support\GymPermission;
 use Illuminate\Http\Request;
 
 class MemberController extends Controller
 {
+    use AuthorizesGymPermissions;
     use BelongsToTenant;
 
     private const SORTABLE_COLUMNS = [
@@ -23,6 +26,8 @@ class MemberController extends Controller
 
     public function index(Request $request)
     {
+        $this->requirePermission($request, GymPermission::MEMBERS_VIEW);
+
         $query = $this->scopeToBranchIfStaff(
             $this->scopeToTenant(Member::query(), $request),
             $request,
@@ -82,6 +87,8 @@ class MemberController extends Controller
 
     public function show(Request $request, Member $member)
     {
+        $this->requirePermission($request, GymPermission::MEMBERS_VIEW);
+
         $query = $this->scopeToBranchIfStaff(
             $this->scopeToTenant(Member::query()->whereKey($member->id), $request),
             $request,

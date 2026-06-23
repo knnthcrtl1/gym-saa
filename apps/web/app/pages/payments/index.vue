@@ -3,14 +3,19 @@
     <PageHeader
       eyebrow="Revenue desk"
       title="Payments"
-      description="Track pending checkout links, manual settlements, and subscription payment state from one place."
+      description="Track cash settlements, proof-based reviews, and optional online checkout activity from one place."
     >
       <template #actions>
         <span class="surface-pill">
           <Icon name="lucide:receipt-text" size="16" />
           {{ pagination.total }} total
         </span>
-        <AppButton tone="primary" :loading="loading" @click="dialogOpen = true">
+        <AppButton
+          v-if="canManagePayments"
+          tone="primary"
+          :loading="loading"
+          @click="dialogOpen = true"
+        >
           <Icon name="lucide:plus" size="18" class="mr-2" />
           Record payment
         </AppButton>
@@ -48,8 +53,8 @@
 
     <TableShell
       eyebrow="Payment ledger"
-      title="Settlements and checkout drafts"
-      description="Hosted checkout links stay pending until the PayMongo webhook updates the payment row."
+      title="Settlements and payment activity"
+      description="Manual settlements and proof reviews stay front and center, while online checkout remains available when needed."
     >
       <template #notice>
         <v-alert v-if="noticeMessage" :type="noticeTone" variant="tonal">
@@ -129,20 +134,80 @@
               <td class="table-cell-muted">
                 {{ formatCurrency(payment.amount) }}
               </td>
-              <td class="table-cell-muted">{{ payment.payment_method }}</td>
+              <td class="table-cell-muted">
+                {{ paymentMethodLabel(payment) }}
+              </td>
               <td>
-                <AppStatusTag :label="payment.status" />
+                <div class="payments-status-stack">
+                  <AppStatusTag :label="payment.status" />
+                  <AppStatusTag
+                    v-if="payment.verification_status !== 'not_required'"
+                    :label="payment.verification_status"
+                  />
+                  <div
+                    v-if="payment.review_notes"
+                    class="table-cell-muted payments-status-note"
+                  >
+                    {{ payment.review_notes }}
+                  </div>
+                </div>
               </td>
               <td class="text-right">
-                <AppButton
-                  v-if="payment.status === 'pending' && payment.checkout_url"
-                  tone="primary"
-                  appearance="outline"
-                  @click="openCheckout(payment.checkout_url)"
+                <div
+                  class="toolbar-cluster toolbar-cluster--end payments-actions"
                 >
-                  Continue checkout
-                </AppButton>
-                <span v-else class="table-cell-muted">-</span>
+                  <AppButton
+                    v-if="latestProofUrl(payment)"
+                    tone="neutral"
+                    appearance="outline"
+                    @click="openProof(latestProofUrl(payment)!)"
+                  >
+                    View proof
+                  </AppButton>
+                  <AppButton
+                    v-if="
+                      canManagePayments &&
+                      payment.status === 'pending' &&
+                      payment.checkout_url
+                    "
+                    tone="primary"
+                    appearance="outline"
+                    @click="openCheckout(payment.checkout_url)"
+                  >
+                    Continue checkout
+                  </AppButton>
+                  <AppButton
+                    v-if="
+                      canReviewPayments &&
+                      payment.verification_status === 'pending'
+                    "
+                    tone="primary"
+                    appearance="outline"
+                    :loading="
+                      actionPaymentId === payment.id && actionKind === 'verify'
+                    "
+                    @click="verifyPayment(payment)"
+                  >
+                    Verify
+                  </AppButton>
+                  <AppButton
+                    v-if="
+                      canReviewPayments &&
+                      payment.verification_status === 'pending'
+                    "
+                    tone="neutral"
+                    appearance="outline"
+                    :loading="
+                      actionPaymentId === payment.id && actionKind === 'reject'
+                    "
+                    @click="rejectPayment(payment)"
+                  >
+                    Reject
+                  </AppButton>
+                  <span v-if="!hasRowActions(payment)" class="table-cell-muted">
+                    -
+                  </span>
+                </div>
               </td>
             </tr>
           </tbody>
@@ -195,6 +260,7 @@
 
 <script setup lang="ts">
 import type { Payment } from "../../../types/api";
+import { useAuthorization } from "../../../composables/useAuthorization";
 import { usePayments } from "../../../composables/usePayments";
 import PageHeader from "../../components/admin/PageHeader.vue";
 import TableShell from "../../components/admin/TableShell.vue";
@@ -209,19 +275,28 @@ type ApiPageError = {
 };
 
 definePageMeta({
-  middleware: ["auth"],
+  middleware: ["auth", "can"],
+  permission: "payments.view",
 });
 
+const { hasPermission } = useAuthorization();
 const route = useRoute();
-const { list } = usePayments();
+const { list, verify, reject } = usePayments();
 
 const loading = ref(false);
 const dialogOpen = ref(false);
 const payments = ref<Payment[]>([]);
 const errorMessage = ref("");
+const actionMessage = ref("");
+const actionPaymentId = ref<number | null>(null);
+const actionKind = ref<"verify" | "reject" | null>(null);
 const noticeMessage = computed(() => {
+  if (actionMessage.value) {
+    return actionMessage.value;
+  }
+
   if (route.query.checkout === "success") {
-    return "Returned from PayMongo checkout. Payment status will update after the webhook is processed.";
+    return "Returned from online checkout. Payment status will update after the webhook is processed.";
   }
 
   if (route.query.checkout === "cancelled") {
@@ -232,7 +307,9 @@ const noticeMessage = computed(() => {
 });
 
 const noticeTone = computed(() =>
-  route.query.checkout === "cancelled" ? "warning" : "success",
+  route.query.checkout === "cancelled" && !actionMessage.value
+    ? "warning"
+    : "success",
 );
 
 const pagination = reactive({
@@ -242,6 +319,9 @@ const pagination = reactive({
   from: 0 as number | null,
   to: 0 as number | null,
 });
+
+const canManagePayments = computed(() => hasPermission("payments.manage"));
+const canReviewPayments = computed(() => hasPermission("payments.review"));
 
 const loadPayments = async (page = pagination.current_page) => {
   loading.value = true;
@@ -266,6 +346,7 @@ const loadPayments = async (page = pagination.current_page) => {
 };
 
 const handleSaved = async () => {
+  actionMessage.value = "Payment recorded successfully.";
   await loadPayments(1);
 };
 
@@ -301,6 +382,14 @@ const fallbackSubscription = (payment: Payment) =>
     ? `Subscription #${payment.subscription_id}`
     : "Manual payment";
 
+const paymentMethodLabel = (payment: Payment) => {
+  if (payment.gateway === "paymongo") {
+    return "online checkout";
+  }
+
+  return payment.payment_method.replaceAll("_", " ");
+};
+
 const formatDate = (value?: string | null) => {
   if (!value) {
     return "-";
@@ -323,6 +412,95 @@ const formatCurrency = (value: string | number) =>
 const openCheckout = (checkoutUrl: string) => {
   if (import.meta.client) {
     window.location.href = checkoutUrl;
+  }
+};
+
+const latestProofUrl = (payment: Payment) => payment.proofs?.[0]?.url ?? null;
+
+const hasRowActions = (payment: Payment) =>
+  Boolean(latestProofUrl(payment)) ||
+  Boolean(
+    canManagePayments.value &&
+    payment.status === "pending" &&
+    payment.checkout_url,
+  ) ||
+  Boolean(canReviewPayments.value && payment.verification_status === "pending");
+
+const openProof = (proofUrl: string) => {
+  if (import.meta.client) {
+    window.open(proofUrl, "_blank", "noopener,noreferrer");
+  }
+};
+
+const verifyPayment = async (payment: Payment) => {
+  if (actionPaymentId.value || !import.meta.client) {
+    return;
+  }
+
+  const shouldContinue = window.confirm(
+    `Verify payment #${payment.id} and apply it to the linked subscription?`,
+  );
+
+  if (!shouldContinue) {
+    return;
+  }
+
+  const notes = window.prompt(
+    "Optional verification note",
+    payment.review_notes ?? "",
+  );
+
+  actionPaymentId.value = payment.id;
+  actionKind.value = "verify";
+  errorMessage.value = "";
+  actionMessage.value = "";
+
+  try {
+    await verify(payment.id, { notes: notes || null });
+    actionMessage.value = `Payment #${payment.id} verified.`;
+    await loadPayments(pagination.current_page);
+  } catch (error) {
+    const typedError = error as ApiPageError;
+
+    errorMessage.value =
+      typedError.data?.message ?? "Unable to verify payment.";
+  } finally {
+    actionPaymentId.value = null;
+    actionKind.value = null;
+  }
+};
+
+const rejectPayment = async (payment: Payment) => {
+  if (actionPaymentId.value || !import.meta.client) {
+    return;
+  }
+
+  const notes = window.prompt(
+    `Reject payment #${payment.id}. Add an optional note for staff context.`,
+    payment.review_notes ?? "",
+  );
+
+  if (notes === null) {
+    return;
+  }
+
+  actionPaymentId.value = payment.id;
+  actionKind.value = "reject";
+  errorMessage.value = "";
+  actionMessage.value = "";
+
+  try {
+    await reject(payment.id, { notes: notes || null });
+    actionMessage.value = `Payment #${payment.id} rejected.`;
+    await loadPayments(pagination.current_page);
+  } catch (error) {
+    const typedError = error as ApiPageError;
+
+    errorMessage.value =
+      typedError.data?.message ?? "Unable to reject payment.";
+  } finally {
+    actionPaymentId.value = null;
+    actionKind.value = null;
   }
 };
 
@@ -351,6 +529,19 @@ const capturedValue = computed(() =>
   justify-content: space-between;
   gap: 16px;
   align-items: center;
+  flex-wrap: wrap;
+}
+
+.payments-status-stack {
+  display: grid;
+  gap: 6px;
+}
+
+.payments-status-note {
+  max-width: 240px;
+}
+
+.payments-actions {
   flex-wrap: wrap;
 }
 </style>

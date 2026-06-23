@@ -155,7 +155,8 @@
 import type { AuthUser } from "../../../types/api";
 
 definePageMeta({
-  middleware: ["auth"],
+  middleware: ["auth", "can"],
+  permission: "dashboard.view",
 });
 
 const user = useState<AuthUser | null>("auth.user", () => null);
@@ -165,9 +166,15 @@ const stats = computed(
   () =>
     data.value?.stats ?? {
       active_members: 0,
+      expired_members: 0,
       expired_subscriptions: 0,
+      new_members_this_month: 0,
       today_checkins: 0,
+      payments_today: 0,
+      payments_this_month: 0,
+      income_today: 0,
       monthly_revenue: 0,
+      upcoming_renewals: 0,
     },
 );
 
@@ -189,6 +196,15 @@ const cards = computed(() => [
     barWidth: "72%",
   },
   {
+    label: "New This Month",
+    value: stats.value.new_members_this_month,
+    caption: "New registrations this month",
+    icon: "lucide:user-plus",
+    iconClass: "stat-card__icon--green",
+    barClass: "stat-card__bar-fill--green",
+    barWidth: "42%",
+  },
+  {
     label: "Today Check-ins",
     value: stats.value.today_checkins,
     caption: "Front-desk activity today",
@@ -196,6 +212,15 @@ const cards = computed(() => [
     iconClass: "stat-card__icon--blue",
     barClass: "stat-card__bar-fill--blue",
     barWidth: "45%",
+  },
+  {
+    label: "Payments Today",
+    value: stats.value.payments_today,
+    caption: "Paid transactions recorded today",
+    icon: "lucide:receipt-text",
+    iconClass: "stat-card__icon--blue",
+    barClass: "stat-card__bar-fill--blue",
+    barWidth: "54%",
   },
   {
     label: "Monthly Revenue",
@@ -207,8 +232,17 @@ const cards = computed(() => [
     barWidth: "60%",
   },
   {
-    label: "Expired Subscriptions",
-    value: stats.value.expired_subscriptions,
+    label: "Upcoming Renewals",
+    value: stats.value.upcoming_renewals,
+    caption: "Subscriptions ending within 7 days",
+    icon: "lucide:calendar-clock",
+    iconClass: "stat-card__icon--amber",
+    barClass: "stat-card__bar-fill--amber",
+    barWidth: "38%",
+  },
+  {
+    label: "Expired Members",
+    value: stats.value.expired_members,
     caption: "Due for renewal follow-up",
     icon: "lucide:clock",
     iconClass: "stat-card__icon--red",

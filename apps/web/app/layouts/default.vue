@@ -5,6 +5,8 @@
       <v-navigation-drawer
         v-if="showAppShell"
         v-model="drawer"
+        :rail="isDesktop && drawerRail"
+        :rail-width="88"
         :permanent="isDesktop"
         :temporary="!isDesktop"
         class="app-drawer"
@@ -25,7 +27,7 @@
           <!-- Nav items -->
           <v-list class="app-nav" density="compact" nav>
             <v-list-item
-              v-for="item in navigationItems"
+              v-for="item in visibleNavigationItems"
               :key="item.to"
               :active="isActive(item.to)"
               :title="item.label"
@@ -61,29 +63,21 @@
 
       <!-- Top bar -->
       <v-app-bar v-if="showAppShell" class="app-bar" flat>
-        <!-- Mobile menu toggle -->
-        <v-btn
-          v-if="!isDesktop"
-          icon
-          variant="text"
-          class="mr-2"
-          @click="drawer = !drawer"
-        >
-          <Icon name="lucide:menu" size="22" />
-        </v-btn>
+        <div class="app-bar__headline">
+          <v-btn
+            icon
+            variant="text"
+            class="app-bar__menu-btn"
+            @click="toggleNavigation"
+          >
+            <Icon
+              :name="isDesktop ? 'lucide:panel-left' : 'lucide:menu'"
+              size="22"
+            />
+          </v-btn>
 
-        <!-- Page title -->
-        <div class="app-bar__title">{{ currentPageTitle }}</div>
-
-        <v-spacer />
-
-        <!-- Search bar (visual only) -->
-        <input
-          class="app-bar__search"
-          type="text"
-          placeholder="Find something here..."
-          disabled
-        />
+          <div class="app-bar__title">{{ currentPageTitle }}</div>
+        </div>
 
         <v-spacer />
 
@@ -158,22 +152,34 @@
 </template>
 
 <script setup lang="ts">
+import { useAuthorization } from "../../composables/useAuthorization";
 import type { AuthUser } from "../../types/api";
 import { useTheme, useDisplay } from "vuetify";
 
 const route = useRoute();
 const user = useState<AuthUser | null>("auth.user", () => null);
+const { hasPermission } = useAuthorization();
 const theme = useTheme();
 const { mdAndUp } = useDisplay();
 
 const publicRoutes = new Set(["/", "/login"]);
 const drawer = ref(true);
+const drawerRail = ref(false);
 
 const isDesktop = computed(() => mdAndUp.value);
 const isDark = computed(() => theme.global.current.value.dark);
 
 const toggleTheme = () => {
   theme.global.name.value = isDark.value ? "gymLight" : "gymDark";
+};
+
+const toggleNavigation = () => {
+  if (isDesktop.value) {
+    drawerRail.value = !drawerRail.value;
+    return;
+  }
+
+  drawer.value = !drawer.value;
 };
 
 const userInitials = computed(() => {
@@ -196,6 +202,7 @@ const pageTitles: Record<string, string> = {
   "/staff": "Staff",
   "/branches": "Branches",
   "/tenants": "Tenants",
+  "/audit-logs": "Audit Logs",
 };
 
 const currentPageTitle = computed(() => {
@@ -208,16 +215,71 @@ const currentPageTitle = computed(() => {
 });
 
 const navigationItems = [
-  { label: "Dashboard", to: "/dashboard", icon: "lucide:layout-dashboard" },
-  { label: "Members", to: "/members", icon: "lucide:users" },
-  { label: "Plans", to: "/plans", icon: "lucide:credit-card" },
-  { label: "Subscriptions", to: "/subscriptions", icon: "lucide:repeat" },
-  { label: "Payments", to: "/payments", icon: "lucide:wallet" },
-  { label: "Attendance", to: "/attendance", icon: "lucide:scan-line" },
-  { label: "Staff", to: "/staff", icon: "lucide:user-cog" },
-  { label: "Branches", to: "/branches", icon: "lucide:map-pin" },
-  { label: "Tenants", to: "/tenants", icon: "lucide:building-2" },
+  {
+    label: "Dashboard",
+    to: "/dashboard",
+    icon: "lucide:layout-dashboard",
+    permission: "dashboard.view",
+  },
+  {
+    label: "Members",
+    to: "/members",
+    icon: "lucide:users",
+    permission: "members.view",
+  },
+  {
+    label: "Plans",
+    to: "/plans",
+    icon: "lucide:credit-card",
+    permission: "plans.view",
+  },
+  {
+    label: "Subscriptions",
+    to: "/subscriptions",
+    icon: "lucide:repeat",
+    permission: "subscriptions.view",
+  },
+  {
+    label: "Payments",
+    to: "/payments",
+    icon: "lucide:wallet",
+    permission: "payments.view",
+  },
+  {
+    label: "Attendance",
+    to: "/attendance",
+    icon: "lucide:scan-line",
+    permission: "attendance.view",
+  },
+  {
+    label: "Staff",
+    to: "/staff",
+    icon: "lucide:user-cog",
+    permission: "staff.view",
+  },
+  {
+    label: "Branches",
+    to: "/branches",
+    icon: "lucide:map-pin",
+    permission: "branches.view",
+  },
+  {
+    label: "Tenants",
+    to: "/tenants",
+    icon: "lucide:building-2",
+    permission: "tenants.view",
+  },
+  {
+    label: "Audit Logs",
+    to: "/audit-logs",
+    icon: "lucide:scroll-text",
+    permission: "audit_logs.view",
+  },
 ];
+
+const visibleNavigationItems = computed(() =>
+  navigationItems.filter((item) => hasPermission(item.permission)),
+);
 
 const showAppShell = computed(() => !publicRoutes.has(route.path));
 
@@ -241,4 +303,10 @@ watch(
     }
   },
 );
+
+watch(isDesktop, (desktop) => {
+  if (!desktop) {
+    drawerRail.value = false;
+  }
+});
 </script>

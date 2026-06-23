@@ -31,8 +31,24 @@ type DeleteSubscriptionResponse = {
   message: string;
 };
 
+type MutationOptions = {
+  idempotencyKey?: string;
+};
+
 export const useSubscriptions = () => {
   const { api } = useApi();
+
+  const mutationHeaders = (options?: MutationOptions) => {
+    if (!options?.idempotencyKey) {
+      return {};
+    }
+
+    return {
+      headers: {
+        "X-Idempotency-Key": options.idempotencyKey,
+      },
+    };
+  };
 
   const list = (params?: SubscriptionListParams) => {
     return api<PaginatedResponse<Subscription>>("/subscriptions", {
@@ -44,10 +60,11 @@ export const useSubscriptions = () => {
     return api<SubscriptionResponse>(`/subscriptions/${id}`);
   };
 
-  const create = (payload: SubscriptionPayload) => {
+  const create = (payload: SubscriptionPayload, options?: MutationOptions) => {
     return api<SubscriptionMutationResponse>("/subscriptions", {
       method: "POST",
       body: payload,
+      ...mutationHeaders(options),
     });
   };
 
