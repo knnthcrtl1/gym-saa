@@ -82,7 +82,7 @@ class PayMongoService
         $secret = (string) config('services.paymongo.webhook_secret');
 
         if ($secret === '') {
-            return true;
+            throw new RuntimeException('PayMongo webhook secret is not configured.');
         }
 
         if (! $signatureHeader) {

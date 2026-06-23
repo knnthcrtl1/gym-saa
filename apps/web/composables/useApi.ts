@@ -14,6 +14,14 @@ export const useApi = () => {
         options.headers = headers;
       }
     },
+    onResponseError({ response }) {
+      if (response.status === 401 && import.meta.client) {
+        token.value = null;
+        useState("auth.user").value = null;
+        useState("auth.initialized").value = false;
+        navigateTo("/login");
+      }
+    },
   });
 
   return { api };

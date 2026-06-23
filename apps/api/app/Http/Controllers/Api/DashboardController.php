@@ -11,6 +11,7 @@ use App\Support\AuthorizesGymPermissions;
 use App\Support\BelongsToTenant;
 use App\Support\GymPermission;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 
 class DashboardController extends Controller
 {
@@ -21,77 +22,80 @@ class DashboardController extends Controller
     {
         $this->requirePermission($request, GymPermission::DASHBOARD_VIEW);
 
-        $activeMembers = $this->scopeToBranchIfStaff(
-            $this->scopeToTenant(Member::query(), $request),
-            $request,
-        )->where('status', 'active')->count();
+        $user = $request->user();
+        $cacheKey = sprintf('tenant:%s:branch:%s:dashboard', $user->tenant_id ?? 'all', $user->branch_id ?? 'all');
 
-        $expiredMembers = $this->scopeToBranchIfStaff(
-            $this->scopeToTenant(Subscription::query(), $request),
-            $request,
-        )->where(function ($query) {
-            $query->where('status', 'expired')
-                ->orWhereDate('end_date', '<', today());
-        })->distinct('member_id')->count('member_id');
+        $stats = Cache::remember($cacheKey, 300, function () use ($request) {
+            $activeMembers = $this->scopeToBranchIfStaff(
+                $this->scopeToTenant(Member::query(), $request),
+                $request,
+            )->where('status', 'active')->count();
 
-        $expiredSubscriptions = $this->scopeToBranchIfStaff(
-            $this->scopeToTenant(Subscription::query(), $request),
-            $request,
-        )->where(function ($query) {
-            $query->where('status', 'expired')
-                ->orWhereDate('end_date', '<', today());
-        })->count();
+            $expiredMembers = $this->scopeToBranchIfStaff(
+                $this->scopeToTenant(Subscription::query(), $request),
+                $request,
+            )->where(function ($query) {
+                $query->where('status', 'expired')
+                    ->orWhereDate('end_date', '<', today());
+            })->distinct('member_id')->count('member_id');
 
-        $newMembersThisMonth = $this->scopeToBranchIfStaff(
-            $this->scopeToTenant(Member::query(), $request),
-            $request,
-        )->whereBetween('joined_at', [now()->startOfMonth()->toDateString(), now()->endOfMonth()->toDateString()])->count();
+            $expiredSubscriptions = $this->scopeToBranchIfStaff(
+                $this->scopeToTenant(Subscription::query(), $request),
+                $request,
+            )->where(function ($query) {
+                $query->where('status', 'expired')
+                    ->orWhereDate('end_date', '<', today());
+            })->count();
 
-        $todayCheckins = $this->scopeToBranchIfStaff(
-            $this->scopeToTenant(Checkin::query(), $request),
-            $request,
-        )->whereDate('checkin_time', today())->count();
+            $newMembersThisMonth = $this->scopeToBranchIfStaff(
+                $this->scopeToTenant(Member::query(), $request),
+                $request,
+            )->whereBetween('joined_at', [now()->startOfMonth()->toDateString(), now()->endOfMonth()->toDateString()])->count();
 
-        $paymentsToday = $this->scopeToBranchIfStaff(
-            $this->scopeToTenant(Payment::query(), $request),
-            $request,
-        )->where('status', 'paid')
-            ->whereDate('payment_date', today())
-            ->count();
+            $todayCheckins = $this->scopeToBranchIfStaff(
+                $this->scopeToTenant(Checkin::query(), $request),
+                $request,
+            )->whereDate('checkin_time', today())->count();
 
-        $paymentsThisMonth = $this->scopeToBranchIfStaff(
-            $this->scopeToTenant(Payment::query(), $request),
-            $request,
-        )->where('status', 'paid')
-            ->whereMonth('payment_date', now()->month)
-            ->whereYear('payment_date', now()->year)
-            ->count();
+            $paymentsToday = $this->scopeToBranchIfStaff(
+                $this->scopeToTenant(Payment::query(), $request),
+                $request,
+            )->where('status', 'paid')
+                ->whereDate('payment_date', today())
+                ->count();
 
-        $incomeToday = $this->scopeToBranchIfStaff(
-            $this->scopeToTenant(Payment::query(), $request),
-            $request,
-        )->where('status', 'paid')
-            ->whereDate('payment_date', today())
-            ->sum('amount');
+            $paymentsThisMonth = $this->scopeToBranchIfStaff(
+                $this->scopeToTenant(Payment::query(), $request),
+                $request,
+            )->where('status', 'paid')
+                ->whereMonth('payment_date', now()->month)
+                ->whereYear('payment_date', now()->year)
+                ->count();
 
-        $monthlyRevenue = $this->scopeToBranchIfStaff(
-            $this->scopeToTenant(Payment::query(), $request),
-            $request,
-        )->where('status', 'paid')
-            ->whereMonth('payment_date', now()->month)
-            ->whereYear('payment_date', now()->year)
-            ->sum('amount');
+            $incomeToday = $this->scopeToBranchIfStaff(
+                $this->scopeToTenant(Payment::query(), $request),
+                $request,
+            )->where('status', 'paid')
+                ->whereDate('payment_date', today())
+                ->sum('amount');
 
-        $upcomingRenewals = $this->scopeToBranchIfStaff(
-            $this->scopeToTenant(Subscription::query(), $request),
-            $request,
-        )->whereDate('end_date', '>=', today())
-            ->whereDate('end_date', '<=', today()->copy()->addDays(7))
-            ->whereIn('status', ['pending', 'active'])
-            ->count();
+            $monthlyRevenue = $this->scopeToBranchIfStaff(
+                $this->scopeToTenant(Payment::query(), $request),
+                $request,
+            )->where('status', 'paid')
+                ->whereMonth('payment_date', now()->month)
+                ->whereYear('payment_date', now()->year)
+                ->sum('amount');
 
-        return response()->json([
-            'stats' => [
+            $upcomingRenewals = $this->scopeToBranchIfStaff(
+                $this->scopeToTenant(Subscription::query(), $request),
+                $request,
+            )->whereDate('end_date', '>=', today())
+                ->whereDate('end_date', '<=', today()->copy()->addDays(7))
+                ->whereIn('status', ['pending', 'active'])
+                ->count();
+
+            return [
                 'active_members' => $activeMembers,
                 'expired_members' => $expiredMembers,
                 'expired_subscriptions' => $expiredSubscriptions,
@@ -102,7 +106,9 @@ class DashboardController extends Controller
                 'income_today' => $incomeToday,
                 'monthly_revenue' => $monthlyRevenue,
                 'upcoming_renewals' => $upcomingRenewals,
-            ],
-        ]);
+            ];
+        });
+
+        return response()->json(['stats' => $stats]);
     }
 }

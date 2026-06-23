@@ -21,8 +21,8 @@ Route::prefix('v1')->group(function () {
         'time' => now()->toDateTimeString(),
     ]));
 
-    Route::post('/login', [AuthController::class, 'login']);
-    Route::post('/webhooks/paymongo', [WebhookController::class, 'paymongo']);
+    Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:5,1');
+    Route::post('/webhooks/paymongo', [WebhookController::class, 'paymongo'])->middleware('throttle:60,1');
 
     Route::middleware('auth:sanctum')->group(function () {
         Route::post('/logout', [AuthController::class, 'logout']);
