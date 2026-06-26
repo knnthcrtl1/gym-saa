@@ -16,7 +16,7 @@ const previewDashboardStats: DashboardResponse = {
 };
 
 export const useDashboard = async () => {
-  const { api } = useApi();
+  const { cachedGet } = useApi();
   const config = useRuntimeConfig();
   const preview = useState<DashboardPreviewState>(
     "dashboard-preview-state",
@@ -31,7 +31,7 @@ export const useDashboard = async () => {
       try {
         preview.value.isPreview = false;
 
-        return await api("/dashboard");
+        return await cachedGet<DashboardResponse>("/dashboard", {}, 30000);
       } catch (error) {
         if (config.public.dashboardPreviewMode) {
           preview.value.isPreview = true;

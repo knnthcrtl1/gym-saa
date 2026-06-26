@@ -370,7 +370,7 @@ definePageMeta({
 const { hasPermission } = useAuthorization();
 const { list, remove, bulkRemove } = useMembers();
 
-const loading = ref(false);
+const loading = ref(true);
 const members = ref<Member[]>([]);
 const searchInput = ref("");
 const search = ref("");
@@ -653,7 +653,7 @@ const formatDate = (value?: string | null) => {
   }).format(new Date(value));
 };
 
-await loadMembers();
+onMounted(() => loadMembers());
 
 const activeCount = computed(
   () => members.value.filter((member) => member.status === "active").length,

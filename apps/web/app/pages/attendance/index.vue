@@ -217,7 +217,7 @@ definePageMeta({
 
 const { list } = useCheckins();
 
-const loading = ref(false);
+const loading = ref(true);
 const dialogOpen = ref(false);
 const checkins = ref<Checkin[]>([]);
 const errorMessage = ref("");
@@ -317,5 +317,5 @@ watch(dateFilter, async () => {
   await loadCheckins(1);
 });
 
-await loadCheckins();
+onMounted(() => loadCheckins());
 </script>

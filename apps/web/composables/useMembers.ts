@@ -49,43 +49,51 @@ type DeleteMemberResponse = {
 };
 
 export const useMembers = () => {
-  const { api } = useApi();
+  const { api, cachedGet, invalidateCache } = useApi();
 
   const list = (params?: MemberListParams) => {
-    return api<PaginatedResponse<Member>>("/members", {
+    return cachedGet<PaginatedResponse<Member>>("/members", {
       query: params,
     });
   };
 
   const get = (id: number) => {
-    return api<MemberResponse>(`/members/${id}`);
+    return cachedGet<MemberResponse>(`/members/${id}`);
   };
 
-  const create = (payload: MemberPayload) => {
-    return api<MemberMutationResponse>("/members", {
+  const create = async (payload: MemberPayload) => {
+    const result = await api<MemberMutationResponse>("/members", {
       method: "POST",
       body: payload,
     });
+    invalidateCache("/members");
+    return result;
   };
 
-  const update = (id: number, payload: Partial<MemberPayload>) => {
-    return api<MemberMutationResponse>(`/members/${id}`, {
+  const update = async (id: number, payload: Partial<MemberPayload>) => {
+    const result = await api<MemberMutationResponse>(`/members/${id}`, {
       method: "PUT",
       body: payload,
     });
+    invalidateCache("/members");
+    return result;
   };
 
-  const remove = (id: number) => {
-    return api<DeleteMemberResponse>(`/members/${id}`, {
+  const remove = async (id: number) => {
+    const result = await api<DeleteMemberResponse>(`/members/${id}`, {
       method: "DELETE",
     });
+    invalidateCache("/members");
+    return result;
   };
 
-  const bulkRemove = (ids: number[]) => {
-    return api<DeleteMemberResponse>("/members/bulk-delete", {
+  const bulkRemove = async (ids: number[]) => {
+    const result = await api<DeleteMemberResponse>("/members/bulk-delete", {
       method: "DELETE",
       body: { ids },
     });
+    invalidateCache("/members");
+    return result;
   };
 
   return {

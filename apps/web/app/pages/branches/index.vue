@@ -223,7 +223,7 @@ definePageMeta({
 const { hasPermission } = useAuthorization();
 const { list, remove } = useBranches();
 
-const loading = ref(false);
+const loading = ref(true);
 const deleteLoading = ref(false);
 const branches = ref<Branch[]>([]);
 const selectedBranch = ref<Branch | null>(null);
@@ -442,7 +442,7 @@ const someVisibleSelected = computed(
   () => selectedIds.value.length > 0 && !allVisibleSelected.value,
 );
 
-await loadBranches();
+onMounted(() => loadBranches());
 </script>
 
 <style scoped>

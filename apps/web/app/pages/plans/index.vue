@@ -260,7 +260,7 @@ definePageMeta({
 const { hasPermission } = useAuthorization();
 const { list, remove } = usePlans();
 
-const loading = ref(false);
+const loading = ref(true);
 const deleteLoading = ref(false);
 const plans = ref<MembershipPlan[]>([]);
 const selectedPlan = ref<MembershipPlan | null>(null);
@@ -474,7 +474,7 @@ const formatCurrency = (value: string | number) =>
     maximumFractionDigits: 2,
   }).format(Number(value));
 
-await loadPlans();
+onMounted(() => loadPlans());
 
 const activeCount = computed(
   () => plans.value.filter((plan) => plan.status === "active").length,

@@ -283,7 +283,7 @@ const { hasPermission } = useAuthorization();
 const route = useRoute();
 const { list, verify, reject } = usePayments();
 
-const loading = ref(false);
+const loading = ref(true);
 const dialogOpen = ref(false);
 const payments = ref<Payment[]>([]);
 const errorMessage = ref("");
@@ -504,7 +504,7 @@ const rejectPayment = async (payment: Payment) => {
   }
 };
 
-await loadPayments();
+onMounted(() => loadPayments());
 
 const paidCount = computed(
   () => payments.value.filter((item) => item.status === "paid").length,

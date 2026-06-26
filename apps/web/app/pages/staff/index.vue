@@ -287,7 +287,7 @@ definePageMeta({
 const { hasPermission } = useAuthorization();
 const { list, remove } = useStaff();
 
-const loading = ref(false);
+const loading = ref(true);
 const deleteLoading = ref(false);
 const staff = ref<StaffUser[]>([]);
 const selectedStaff = ref<StaffUser | null>(null);
@@ -505,5 +505,5 @@ watch(statusFilter, async () => {
   await loadStaff(1);
 });
 
-await loadStaff();
+onMounted(() => loadStaff());
 </script>

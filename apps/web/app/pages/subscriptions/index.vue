@@ -290,7 +290,7 @@ definePageMeta({
 const { hasPermission } = useAuthorization();
 const { list, remove } = useSubscriptions();
 
-const loading = ref(false);
+const loading = ref(true);
 const deleteLoading = ref(false);
 const subscriptions = ref<Subscription[]>([]);
 const selectedSubscription = ref<Subscription | null>(null);
@@ -572,7 +572,7 @@ const isEndingSoon = (value: string) => {
   return endDate >= today && endDate <= nextWeek;
 };
 
-await loadSubscriptions();
+onMounted(() => loadSubscriptions());
 
 const activeCount = computed(
   () => subscriptions.value.filter((item) => item.status === "active").length,

@@ -220,7 +220,7 @@ definePageMeta({
 const { hasPermission } = useAuthorization();
 const { list, remove } = useTenants();
 
-const loading = ref(false);
+const loading = ref(true);
 const deleteLoading = ref(false);
 const tenants = ref<Tenant[]>([]);
 const selectedTenant = ref<Tenant | null>(null);
@@ -439,7 +439,7 @@ const someVisibleSelected = computed(
   () => selectedIds.value.length > 0 && !allVisibleSelected.value,
 );
 
-await loadTenants();
+onMounted(() => loadTenants());
 </script>
 
 <style scoped>
